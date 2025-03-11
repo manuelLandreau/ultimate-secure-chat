@@ -14,6 +14,7 @@ export const useDirectP2PChat = () => {
   // Local states
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<Error | null>(null);
+  const [pendingConnections, setPendingConnections] = useState<{id: string, name?: string}[]>([]);
   
   // Access to global store
   const {
@@ -402,6 +403,103 @@ export const useDirectP2PChat = () => {
     }
   };
   
+  /**
+   * Add connection notification handler
+   */
+  const handleConnectionRequest = (peerId: string, name?: string) => {
+    // Add to pending connections
+    setPendingConnections(prev => [...prev, {id: peerId, name: name || `Contact-${peerId}`}]);
+    
+    // Display browser notification if supported
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification('New Connection Request', {
+        body: `${name || 'Someone'} wants to connect with you`,
+        icon: '/favicon.ico'
+      });
+      
+      // Clicking on notification should focus the app
+      notification.onclick = () => {
+        window.focus();
+      };
+    }
+    
+    // Play sound if available
+    try {
+      const audio = new Audio('/notification.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log('Unable to play notification sound', e));
+    } catch (e) {
+      console.log('Sound notification not supported', e);
+    }
+  };
+  
+  /**
+   * Accept a pending connection
+   */
+  const acceptConnection = async (peerId: string) => {
+    try {
+      if (!p2pServiceRef.current) {
+        console.error('DirectP2P service not initialized');
+        throw new Error('Connection service not initialized');
+      }
+      
+      // Check if the peer exists in contacts
+      const existingContact = contacts.find(c => c.id === peerId);
+      if (!existingContact) {
+        // Get name from pending connections
+        const pendingConn = pendingConnections.find(pc => pc.id === peerId);
+        const name = pendingConn?.name || `Contact-${peerId}`;
+        
+        // Add contact to store
+        addContact({
+          id: peerId,
+          name,
+          isConnected: false
+        });
+      }
+      
+      // Update contact status
+      updateContact(peerId, { isConnected: true });
+      
+      // Remove from pending list
+      setPendingConnections(prev => prev.filter(conn => conn.id !== peerId));
+      
+      // Set this contact as active
+      setActiveContactId(peerId);
+      
+      return true;
+    } catch (error) {
+      console.error('Error accepting connection:', error);
+      setConnectionError(error as Error);
+      return false;
+    }
+  };
+  
+  /**
+   * Reject a pending connection
+   */
+  const rejectConnection = (peerId: string) => {
+    // Remove from pending list
+    setPendingConnections(prev => prev.filter(conn => conn.id !== peerId));
+    
+    // If connected, disconnect the peer
+    if (p2pServiceRef.current?.isConnectedTo(peerId)) {
+      try {
+        // Add logic to actually close the connection if needed
+        // This would depend on your P2P implementation details
+        console.log(`Rejecting connection from ${peerId}`);
+        
+        // Update contact status if it exists
+        const existingContact = contacts.find(c => c.id === peerId);
+        if (existingContact) {
+          updateContact(peerId, { isConnected: false });
+        }
+      } catch (error) {
+        console.error('Error rejecting connection:', error);
+      }
+    }
+  };
+  
   // Cleanup when component unmounts
   useEffect(() => {
     return () => {
@@ -418,6 +516,7 @@ export const useDirectP2PChat = () => {
     isInitialized,
     isConnecting,
     connectionError,
+    pendingConnections,
     
     // Actions
     initialize,
@@ -426,6 +525,9 @@ export const useDirectP2PChat = () => {
     handleContactOffer,
     handleContactAnswer,
     handleIceCandidate,
+    handleConnectionRequest,
+    acceptConnection,
+    rejectConnection,
     sendTextMessage,
     sendFile,
     updateMessageStatus,

@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Avatar } from '../components/ui/Avatar';
 import { useTheme } from '../hooks/useTheme';
+import { ConfirmDialog } from '../components/ui/Dialog';
 import {
   SunIcon,
   MoonIcon,
@@ -18,12 +19,10 @@ import {
   LogOutIcon,
   CopyIcon,
   MessageSquareIcon,
-  GithubIcon,
-  WifiIcon
+  GithubIcon
 } from 'lucide-react';
 import { Message } from '../stores/chatStore';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { Textarea } from '../components/ui/Textarea';
 
 /**
  * Main chat page
@@ -39,6 +38,7 @@ const Chat: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
   
   // P2P hook access
   const {
@@ -55,16 +55,17 @@ const Chat: React.FC = () => {
   // Direct P2P hook access
   const {
     connectToContact: directConnectToContact,
-    handleContactOffer,
-    handleContactAnswer,
+    pendingConnections,
+    acceptConnection,
+    rejectConnection
   } = useDirectP2PChat();
   
-  // Ajout des nouveaux états pour la connexion directe
+  // États pour la connexion
   const [ipAddress, setIpAddress] = useState('');
   const [contactName, setContactName] = useState('');
-  const [offerData, setOfferData] = useState('');
-  const [answerData, setAnswerData] = useState('');
-  const [connectionMode, setConnectionMode] = useState<'create' | 'join'>('create');
+  
+  // Form validation
+  const isValidForm = ipAddress.trim().length > 0;
   
   // Redirect to login page if not connected
   useEffect(() => {
@@ -73,21 +74,21 @@ const Chat: React.FC = () => {
     }
   }, [userProfile, navigate]);
   
+  // Demander l'autorisation pour les notifications
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }, []);
+  
   // Active conversation messages
   const activeConversation = activeContactId ? conversations[activeContactId] : null;
   const messages = activeConversation?.messages || [];
   
   // Active contact
-  const activeContact = contacts.find((contact) => contact.id === activeContactId);
+  const activeContact = contacts.find((c) => c.id === activeContactId);
   
-  // Sort contacts by last message date
-  const sortedContacts = [...contacts].sort((a, b) => {
-    const aLastMessage = conversations[a.id]?.lastMessageTimestamp || 0;
-    const bLastMessage = conversations[b.id]?.lastMessageTimestamp || 0;
-    return bLastMessage - aLastMessage;
-  });
-  
-  // Copy peer ID to clipboard
+  // Copy user ID to clipboard
   const copyPeerId = () => {
     if (myPeerId) {
       navigator.clipboard.writeText(myPeerId);
@@ -139,24 +140,10 @@ const Chat: React.FC = () => {
   
   // Date formatting
   const formatMessageTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-  
-  // Short date formatting for last message
-  const formatShortDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
-    }
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
   
   // Group messages by date
@@ -248,112 +235,43 @@ const Chat: React.FC = () => {
     return null;
   };
   
-  // Créer une offre de connexion
+  // Se connecter à un nouveau contact
   const handleCreateOffer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!ipAddress.trim()) {
-      setError('Please enter the peer IP address');
+      setError('Please enter the contact IP address');
       return;
     }
     
+    // Show confirmation dialog
+    setShowConnectDialog(true);
+  };
+  
+  // Confirm connection
+  const confirmConnection = async () => {
     setIsConnecting(true);
     setError(null);
     
     try {
       // Vérifier que l'utilisateur est initialisé
       if (!userProfile) {
-        throw new Error('You must be logged in to connect to peers');
+        throw new Error('You must be logged in to connect to contacts');
       }
       
-      // Créer l'offre pour la connexion WebRTC
+      // Se connecter au contact
       await directConnectToContact(ipAddress, contactName || undefined);
       
-      // In a real application, this would be where you get the offer data
-      // Currently, the offer is logged to console
-      
-      // Clean up and close the form on success
+      // Nettoyer le formulaire
       setIpAddress('');
       setContactName('');
       setShowContactForm(false);
-      
-      // Set a success message
       setShowMobileMenu(false);
+      setShowConnectDialog(false);
     } catch (err) {
-      setError('Error creating connection. Please try again.');
+      setError('Error connecting to contact. Please try again.');
       console.error(err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-  
-  // Traiter une offre reçue
-  const handleProcessOffer = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    if (!ipAddress.trim() || !offerData.trim()) {
-      setError('Please enter both IP address and offer data');
-      return;
-    }
-    
-    setIsConnecting(true);
-    setError(null);
-    
-    try {
-      // Vérifier que l'utilisateur est initialisé
-      if (!userProfile) {
-        throw new Error('You must be logged in to process offers');
-      }
-      
-      // Parse the offer data
-      const offerObject = JSON.parse(offerData);
-      
-      // Handle the offer and generate an answer
-      const answer = await handleContactOffer(ipAddress, offerObject, contactName || undefined);
-      
-      // Display the answer to be shared
-      setAnswerData(JSON.stringify(answer));
-    } catch (err) {
-      setError('Error processing offer. Please check the format and try again.');
-      console.error(err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-  
-  // Traiter une réponse reçue
-  const handleProcessAnswer = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    if (!ipAddress.trim() || !answerData.trim()) {
-      setError('Please enter both IP address and answer data');
-      return;
-    }
-    
-    setIsConnecting(true);
-    setError(null);
-    
-    try {
-      // Vérifier que l'utilisateur est initialisé
-      if (!userProfile) {
-        throw new Error('You must be logged in to process answers');
-      }
-      
-      // Parse the answer data
-      const answerObject = JSON.parse(answerData);
-      
-      // Process the answer
-      await handleContactAnswer(ipAddress, answerObject);
-      
-      // Clean up and close the form on success
-      setIpAddress('');
-      setOfferData('');
-      setAnswerData('');
-      setShowContactForm(false);
-      setShowMobileMenu(false);
-    } catch (err) {
-      setError('Error processing answer. Please check the format and try again.');
-      console.error(err);
+      setShowConnectDialog(false);
     } finally {
       setIsConnecting(false);
     }
@@ -366,48 +284,73 @@ const Chat: React.FC = () => {
   
   return (
     <div className="flex h-screen w-full flex-col bg-background">
-      {/* Header */}
-      <header className="flex h-16 items-center justify-between border-b border-border px-4">
+      {/* App header */}
+      <header className="fixed left-0 right-0 top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-background px-4">
         <div className="flex items-center gap-2">
           <button
             className="block md:hidden"
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            onClick={() => setShowMobileMenu(true)}
           >
-            <MenuIcon className="h-6 w-6" />
+            <MenuIcon className="h-5 w-5" />
           </button>
-          <h1 className="text-xl font-bold">Ultimate Secure Chat</h1>
+          <MessageSquareIcon className="text-primary" />
+          <h1 className="text-lg font-bold">SecureChat</h1>
         </div>
-        
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => window.open('https://github.com/manuelLandreau/ultimate-secure-chat', '_blank')}
-            aria-label="GitHub"
-          >
-            <GithubIcon size={20} />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
+            onClick={toggleTheme} 
+            aria-label={isDark ? 'Light mode' : 'Dark mode'}
+            title={isDark ? 'Light mode' : 'Dark mode'}
           >
             {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/connect')}
-            aria-label="Direct Connect"
-            title="Direct Connect"
+            onClick={() => window.open('https://github.com/manuelLandreau/ultimate-secure-chat', '_blank')}
+            aria-label="View source on GitHub"
+            title="View source on GitHub"
           >
-            <WifiIcon size={20} />
+            <GithubIcon size={20} />
           </Button>
         </div>
       </header>
       
-      <div className="flex flex-1 overflow-hidden">
+      {/* Connection request notifications */}
+      {pendingConnections.length > 0 && (
+        <div className="fixed right-4 top-20 z-30 w-80 space-y-2">
+          {pendingConnections.map((connection) => (
+            <div 
+              key={connection.id} 
+              className="rounded-lg border border-border bg-card p-4 shadow-md"
+            >
+              <h4 className="font-medium">Connection Request</h4>
+              <p className="mb-3 mt-1 text-sm">{connection.name} wants to connect with you</p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => rejectConnection(connection.id)}
+                >
+                  Decline
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => acceptConnection(connection.id)}
+                >
+                  Accept
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="flex flex-1 overflow-hidden pt-16">
         {/* Mobile overlay - backdrop for the sidebar */}
         {showMobileMenu && (
           <div 
@@ -421,8 +364,8 @@ const Chat: React.FC = () => {
         <aside 
           className={`${
             showMobileMenu ? 'translate-x-0' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-20 flex w-72 flex-col border-r border-border bg-black pt-16 transition-transform duration-300 ease-in-out md:static md:translate-x-0`}
-          style={{ backgroundColor: isDark ? 'black' : 'white' }}
+          } fixed inset-y-0 left-0 z-20 flex w-72 flex-col border-r border-border bg-background pt-16 transition-transform duration-300 ease-in-out md:static md:translate-x-0`}
+          aria-label="Contacts"
         >
           {/* Close button for mobile - positioned at the top right */}
           <button 
@@ -440,30 +383,27 @@ const Chat: React.FC = () => {
               size="icon" 
               onClick={() => setShowContactForm(!showContactForm)}
               aria-label="Add contact"
+              title="Add new contact"
             >
               <UserPlusIcon size={18} />
             </Button>
           </div>
           
-          {/* Form to add a contact */}
+          {/* Connection confirmation dialog */}
+          <ConfirmDialog
+            title="Connect to Contact"
+            message={`Are you sure you want to connect to ${ipAddress}${contactName ? ` (${contactName})` : ''}? This will initiate a secure peer-to-peer connection.`}
+            isOpen={showConnectDialog}
+            onClose={() => setShowConnectDialog(false)}
+            onConfirm={confirmConnection}
+            confirmText="Connect"
+            isLoading={isConnecting}
+          />
+          
+          {/* Simplified contact form */}
           {showContactForm && (
             <div className="border-b border-border p-4">
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                <Button 
-                  onClick={() => setConnectionMode('create')} 
-                  variant={connectionMode === 'create' ? 'default' : 'outline'}
-                  size="sm"
-                >
-                  Create Connection
-                </Button>
-                <Button 
-                  onClick={() => setConnectionMode('join')} 
-                  variant={connectionMode === 'join' ? 'default' : 'outline'}
-                  size="sm"
-                >
-                  Join Connection
-                </Button>
-              </div>
+              <h3 className="mb-3 text-sm font-medium">Connect to someone</h3>
               
               {error && (
                 <div className="mb-4 rounded-md bg-red-100 p-3 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs">
@@ -471,139 +411,59 @@ const Chat: React.FC = () => {
                 </div>
               )}
               
-              {connectionMode === 'create' && (
-                <form onSubmit={handleCreateOffer} className="space-y-3">
-                  <Input
-                    placeholder="Peer IP Address"
-                    value={ipAddress}
-                    onChange={(e) => setIpAddress(e.target.value)}
-                    fullWidth
-                    disabled={isConnecting}
-                  />
-                  <Input
-                    placeholder="Contact Name (Optional)"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    fullWidth
-                    disabled={isConnecting}
-                  />
+              <form onSubmit={handleCreateOffer} className="space-y-3">
+                <Input
+                  placeholder="Contact IP Address"
+                  value={ipAddress}
+                  onChange={(e) => setIpAddress(e.target.value)}
+                  fullWidth
+                  disabled={isConnecting}
+                />
+                <Input
+                  placeholder="Contact Name (Optional)"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  fullWidth
+                  disabled={isConnecting}
+                />
+                <div className="flex-col space-y-2">
                   <Button 
                     type="submit" 
                     className="w-full" 
                     isLoading={isConnecting}
+                    disabled={!isValidForm}
                   >
-                    Create Connection
+                    Connect
                   </Button>
-                </form>
-              )}
-              
-              {connectionMode === 'join' && (
-                <div className="space-y-3">
-                  <form onSubmit={handleProcessOffer} className="space-y-3">
-                    <Input
-                      placeholder="Peer IP Address"
-                      value={ipAddress}
-                      onChange={(e) => setIpAddress(e.target.value)}
-                      fullWidth
-                      disabled={isConnecting}
-                    />
-                    <Input
-                      placeholder="Contact Name (Optional)"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      fullWidth
-                      disabled={isConnecting}
-                    />
-                    <Textarea
-                      value={offerData}
-                      onChange={(e) => setOfferData(e.target.value)}
-                      placeholder="Paste offer data here"
-                      rows={3}
-                      className="font-mono text-xs"
-                    />
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      isLoading={isConnecting}
-                    >
-                      Process Offer
-                    </Button>
-                  </form>
-                  
-                  {answerData && (
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-xs font-medium">Share this answer:</label>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(answerData)}
-                          className="text-primary"
-                        >
-                          <CopyIcon size={14} />
-                        </button>
-                      </div>
-                      <Textarea
-                        value={answerData}
-                        readOnly
-                        rows={3}
-                        className="font-mono text-xs"
-                      />
-                      <form onSubmit={handleProcessAnswer} className="mt-2">
-                        <Button 
-                          type="submit" 
-                          className="w-full" 
-                          isLoading={isConnecting}
-                        >
-                          Complete Connection
-                        </Button>
-                      </form>
-                    </div>
-                  )}
+                  <p className="text-xs text-muted mt-2">
+                    Enter the IP address of the person you want to chat with securely.
+                    The connection is direct and encrypted end-to-end.
+                  </p>
                 </div>
-              )}
+              </form>
             </div>
           )}
           
-          {/* My ID */}
-          <div className="border-b border-border p-4">
-            <p className="mb-1 text-xs text-muted">My ID:</p>
-            <div className="flex items-center gap-2">
-              <code className="block truncate rounded bg-muted/20 px-2 py-1 text-xs flex-1">
-                {myPeerId}
-              </code>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={copyPeerId}
-                className="h-8 w-8"
-                aria-label="Copy ID"
-              >
-                <CopyIcon size={16} />
-              </Button>
-            </div>
-          </div>
-          
-          {/* Contact list */}
+          {/* Contacts list */}
           <div className="flex-1 overflow-y-auto">
-            {sortedContacts.length === 0 ? (
-              <div className="flex h-full items-center justify-center p-4 text-center text-muted">
-                <div>
-                  <p>No contacts</p>
-                  <p className="text-sm">Add a contact to start chatting</p>
-                </div>
+            {contacts.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted">
+                <p>No contacts yet</p>
+                <p className="mt-1 text-xs">
+                  Add a contact to start chatting securely
+                </p>
               </div>
             ) : (
-              <ul>
-                {sortedContacts.map((contact) => {
+              <ul className="divide-y divide-border">
+                {contacts.map((contact) => {
                   const conversation = conversations[contact.id];
-                  const unreadCount = conversation?.unreadCount || 0;
-                  const lastMessageTimestamp = conversation?.lastMessageTimestamp || 0;
-                  const lastMessage = conversation?.messages[conversation.messages.length - 1];
+                  const hasUnread = conversation?.unreadCount && conversation.unreadCount > 0;
                   
                   return (
                     <li key={contact.id}>
                       <button
-                        className={`flex w-full items-center gap-3 p-3 text-left hover:bg-muted/10 ${
-                          contact.id === activeContactId ? 'bg-muted/20' : ''
+                        className={`flex w-full items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors duration-200 ${
+                          activeContactId === contact.id ? 'bg-muted/80' : ''
                         }`}
                         onClick={() => {
                           setActiveContact(contact.id);
@@ -614,30 +474,29 @@ const Chat: React.FC = () => {
                           name={contact.name}
                           status={contact.isConnected ? 'online' : 'offline'}
                         />
-                        <div className="flex-1 overflow-hidden">
+                        <div className="flex-1 text-left overflow-hidden">
                           <div className="flex items-center justify-between">
-                            <p className="font-medium">{contact.name}</p>
-                            {lastMessageTimestamp > 0 && (
-                              <p className="text-xs text-muted">
-                                {formatShortDate(lastMessageTimestamp)}
-                              </p>
+                            <p className="font-medium truncate">{contact.name}</p>
+                            {hasUnread && (
+                              <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
+                                {conversation.unreadCount}
+                              </span>
                             )}
                           </div>
-                          {lastMessage && (
-                            <p className="truncate text-sm text-muted">
-                              {lastMessage.type === 'text'
-                                ? lastMessage.content
-                                : lastMessage.type === 'image'
-                                ? '📷 Image'
-                                : `📎 ${lastMessage.metadata?.fileName || 'File'}`}
-                            </p>
-                          )}
+                          <p className="text-xs text-muted flex items-center">
+                            {contact.isConnected ? (
+                              <>
+                                <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>
+                                Online
+                              </>
+                            ) : (
+                              <>
+                                <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1.5"></span>
+                                Offline
+                              </>
+                            )}
+                          </p>
                         </div>
-                        {unreadCount > 0 && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-medium text-primary-foreground">
-                            {unreadCount}
-                          </span>
-                        )}
                       </button>
                     </li>
                   );
@@ -646,12 +505,35 @@ const Chat: React.FC = () => {
             )}
           </div>
           
+          {/* My ID */}
+          <div className="border-b border-border p-4">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-xs font-medium text-muted">My ID</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 w-6 p-0" 
+                onClick={copyPeerId}
+                aria-label="Copy your ID"
+                title="Copy your ID to clipboard"
+              >
+                <CopyIcon size={14} />
+              </Button>
+            </div>
+            <div className="rounded-md bg-muted/30 p-2">
+              <p className="truncate text-xs font-mono" role="textbox" aria-label="Your user ID">
+                {myPeerId}
+              </p>
+            </div>
+          </div>
+          
           {/* Logout button */}
           <div className="border-t border-border p-2">
             <Button
               variant="ghost"
               className="w-full justify-start text-left"
               onClick={() => navigate('/')}
+              aria-label="Logout"
             >
               <LogOutIcon className="mr-2 h-4 w-4" />
               Logout
@@ -660,7 +542,7 @@ const Chat: React.FC = () => {
         </aside>
         
         {/* Main chat area */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden" aria-label="Chat messages">
           {activeContactId ? (
             <div className="flex h-full flex-col">
               {/* Conversation header */}
@@ -669,6 +551,7 @@ const Chat: React.FC = () => {
                   <button
                     className="block md:hidden"
                     onClick={() => setShowMobileMenu(true)}
+                    aria-label="Open menu"
                   >
                     <MenuIcon className="h-5 w-5" />
                   </button>
