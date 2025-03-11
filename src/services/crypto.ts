@@ -174,7 +174,7 @@ export async function encryptMessage(
     
     // Encodes binary data to base64 for transport
     return {
-      iv: bufferToBase64(iv),
+      iv: bufferToBase64(iv.buffer),
       ciphertext: bufferToBase64(ciphertext),
       encryptedKey: bufferToBase64(encryptedKey)
     };
