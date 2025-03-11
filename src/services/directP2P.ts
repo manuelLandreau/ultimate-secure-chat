@@ -567,4 +567,11 @@ export class DirectP2PService {
     
     this.initialized = false;
   }
+
+  /**
+   * Check if the service is initialized
+   */
+  isInitialized(): boolean {
+    return this.initialized;
+  }
 } 

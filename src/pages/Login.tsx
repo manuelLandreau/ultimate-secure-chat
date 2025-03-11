@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useP2PChat } from '../hooks/useP2PChat';
+import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { SunIcon, MoonIcon, LockIcon, MessageSquareIcon, GithubIcon, WifiIcon } from 'lucide-react';
@@ -14,7 +15,8 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { initialize, isInitialized, reconnect } = useP2PChat();
+  const { initialize: initializeP2P, isInitialized, reconnect: reconnectP2P } = useP2PChat();
+  const { initialize: initializeDirectP2P, reconnect: reconnectDirectP2P } = useDirectP2PChat();
   const { toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   
@@ -24,7 +26,8 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
-      const success = await reconnect();
+      const success = await reconnectP2P();
+      await reconnectDirectP2P();
       
       if (success) {
         navigate('/chat');
@@ -52,7 +55,8 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
-      await initialize(username);
+      await initializeP2P(username);
+      await initializeDirectP2P(username);
       navigate('/chat');
     } catch (err) {
       setError('Error creating profile. Please try again.');

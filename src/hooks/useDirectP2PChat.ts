@@ -165,7 +165,13 @@ export const useDirectP2PChat = () => {
   const connectToContact = async (ipAddress: string, name?: string) => {
     try {
       if (!p2pServiceRef.current) {
-        throw new Error('Direct P2P service not initialized');
+        console.error('DirectP2P service not initialized. Make sure you are logged in.');
+        throw new Error('Direct P2P service not initialized. Please log in first.');
+      }
+      
+      if (!p2pServiceRef.current.isInitialized()) {
+        console.error('DirectP2P service initialized flag is false.');
+        throw new Error('Direct P2P service not fully initialized. Please try logging out and in again.');
       }
       
       // Add contact to store first (we'll use IP as the ID)
@@ -196,7 +202,13 @@ export const useDirectP2PChat = () => {
   const handleContactOffer = async (ipAddress: string, offer: RTCSessionDescriptionInit, name?: string) => {
     try {
       if (!p2pServiceRef.current) {
-        throw new Error('Direct P2P service not initialized');
+        console.error('DirectP2P service not initialized. Make sure you are logged in.');
+        throw new Error('Direct P2P service not initialized. Please log in first.');
+      }
+      
+      if (!p2pServiceRef.current.isInitialized()) {
+        console.error('DirectP2P service initialized flag is false.');
+        throw new Error('Direct P2P service not fully initialized. Please try logging out and in again.');
       }
       
       // Add contact to store first (we'll use IP as the ID)
@@ -229,7 +241,13 @@ export const useDirectP2PChat = () => {
   const handleContactAnswer = async (ipAddress: string, answer: RTCSessionDescriptionInit) => {
     try {
       if (!p2pServiceRef.current) {
-        throw new Error('Direct P2P service not initialized');
+        console.error('DirectP2P service not initialized. Make sure you are logged in.');
+        throw new Error('Direct P2P service not initialized. Please log in first.');
+      }
+      
+      if (!p2pServiceRef.current.isInitialized()) {
+        console.error('DirectP2P service initialized flag is false.');
+        throw new Error('Direct P2P service not fully initialized. Please try logging out and in again.');
       }
       
       // Process the answer

@@ -253,7 +253,7 @@ const Chat: React.FC = () => {
     e.preventDefault();
     
     if (!ipAddress.trim()) {
-      setError('Please enter a valid IP address');
+      setError('Please enter the peer IP address');
       return;
     }
     
@@ -261,7 +261,12 @@ const Chat: React.FC = () => {
     setError(null);
     
     try {
-      // Connect to the peer
+      // Vérifier que l'utilisateur est initialisé
+      if (!userProfile) {
+        throw new Error('You must be logged in to connect to peers');
+      }
+      
+      // Créer l'offre pour la connexion WebRTC
       await directConnectToContact(ipAddress, contactName || undefined);
       
       // In a real application, this would be where you get the offer data
@@ -295,6 +300,11 @@ const Chat: React.FC = () => {
     setError(null);
     
     try {
+      // Vérifier que l'utilisateur est initialisé
+      if (!userProfile) {
+        throw new Error('You must be logged in to process offers');
+      }
+      
       // Parse the offer data
       const offerObject = JSON.parse(offerData);
       
@@ -324,6 +334,11 @@ const Chat: React.FC = () => {
     setError(null);
     
     try {
+      // Vérifier que l'utilisateur est initialisé
+      if (!userProfile) {
+        throw new Error('You must be logged in to process answers');
+      }
+      
       // Parse the answer data
       const answerObject = JSON.parse(answerData);
       
