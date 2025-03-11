@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useP2PChat } from '../hooks/useP2PChat';
+import { useTheme } from '../hooks/useTheme';
 import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Avatar } from '../components/ui/Avatar';
-import { useTheme } from '../hooks/useTheme';
 import { ConfirmDialog } from '../components/ui/Dialog';
 import {
   SunIcon,
@@ -49,15 +48,11 @@ const Chat: React.FC = () => {
     setActiveContact,
     sendTextMessage,
     sendFile,
-    myPeerId,
-  } = useP2PChat();
-  
-  // Direct P2P hook access
-  const {
-    connectToContact: directConnectToContact,
+    myUserId,
     pendingConnections,
     acceptConnection,
-    rejectConnection
+    rejectConnection,
+    connectToContact,
   } = useDirectP2PChat();
   
   // États pour la connexion
@@ -90,8 +85,10 @@ const Chat: React.FC = () => {
   
   // Copy user ID to clipboard
   const copyPeerId = () => {
-    if (myPeerId) {
-      navigator.clipboard.writeText(myPeerId);
+    if (myUserId) {
+      navigator.clipboard.writeText(myUserId)
+        .then(() => console.log('Copied user ID to clipboard'))
+        .catch(err => console.error('Could not copy text: ', err));
     }
   };
   
@@ -260,7 +257,7 @@ const Chat: React.FC = () => {
       }
       
       // Se connecter au contact
-      await directConnectToContact(ipAddress, contactName || undefined);
+      await connectToContact(ipAddress, contactName || undefined);
       
       // Nettoyer le formulaire
       setIpAddress('');
@@ -531,7 +528,7 @@ const Chat: React.FC = () => {
             </div>
             <div className="rounded-md bg-muted/30 p-2">
               <p className="truncate text-xs font-mono" role="textbox" aria-label="Your user ID">
-                {myPeerId}
+                {myUserId}
               </p>
             </div>
           </div>

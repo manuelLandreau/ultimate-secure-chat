@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useP2PChat } from '../hooks/useP2PChat';
 import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -15,8 +14,7 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { initialize: initializeP2P, isInitialized, reconnect: reconnectP2P } = useP2PChat();
-  const { initialize: initializeDirectP2P, reconnect: reconnectDirectP2P } = useDirectP2PChat();
+  const { initialize, isInitialized, reconnect } = useDirectP2PChat();
   const { toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   
@@ -28,24 +26,15 @@ const Login: React.FC = () => {
     try {
       console.log('Starting reconnection process...');
       
-      // Reconnect to P2P service
-      const p2pSuccess = await reconnectP2P();
-      console.log('P2P reconnection result:', p2pSuccess);
-      
       // Reconnect to DirectP2P service
-      const directSuccess = await reconnectDirectP2P();
-      console.log('DirectP2P reconnection result:', directSuccess);
+      const success = await reconnect();
+      console.log('DirectP2P reconnection result:', success);
       
-      if (p2pSuccess && directSuccess) {
+      if (success) {
         console.log('Reconnection successful, navigating to chat');
         navigate('/chat');
       } else {
-        if (!p2pSuccess) {
-          console.error('Failed to reconnect P2P service');
-        }
-        if (!directSuccess) {
-          console.error('Failed to reconnect DirectP2P service');
-        }
+        console.error('Failed to reconnect DirectP2P service');
         setError('Unable to reconnect. Please create a new profile.');
       }
     } catch (err) {
@@ -69,16 +58,11 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
-      // Initialiser les services dans un ordre précis
       console.log('Starting profile creation process...');
       
-      // Initialiser d'abord le P2P service standard
-      const userId = await initializeP2P(username);
-      console.log('P2P service initialized with user ID:', userId);
-      
-      // Puis initialiser le service DirectP2P
-      const directUserId = await initializeDirectP2P(username);
-      console.log('DirectP2P service initialized with user ID:', directUserId);
+      // Initialiser directement DirectP2P
+      const userId = await initialize(username);
+      console.log('DirectP2P service initialized with user ID:', userId);
       
       // Vérifier que tout est bien initialisé
       if (!isInitialized) {

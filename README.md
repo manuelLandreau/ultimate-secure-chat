@@ -52,11 +52,13 @@ No private key ever leaves the user's device. Messages can only be read by the s
 
 ### P2P Communication
 
-Peer-to-peer communication is established using WebRTC via PeerJS:
+La communication pair-à-pair est établie en utilisant des connexions WebRTC directes:
 
-1. Each user has a unique ID generated on connection.
-2. The ID can be shared with other users to establish the connection.
-3. Data exchanged via the WebRTC data channel is already encrypted by E2EE.
+1. Chaque utilisateur génère un identifiant unique lors de la connexion.
+2. L'utilisateur peut partager son adresse IP avec d'autres pour établir une connexion directe.
+3. L'échange d'offres et de réponses WebRTC se fait manuellement pour établir la connexion.
+4. Les données échangées via le canal de données WebRTC sont déjà chiffrées par le chiffrement de bout en bout.
+5. Aucun serveur de signalisation n'est utilisé, ce qui garantit une confidentialité maximale.
 
 ## Installation and Execution
 

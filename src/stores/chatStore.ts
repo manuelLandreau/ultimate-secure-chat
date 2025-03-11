@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { KeyPair, exportPrivateKey, exportPublicKey } from '../services/crypto';
-import { FileMessage, P2PMessage, TextMessage } from '../services/p2p';
+import { FileMessage, P2PMessage, TextMessage } from '../services/directP2P';
 
 // Types pour les messages et conversations
 export interface Contact {
