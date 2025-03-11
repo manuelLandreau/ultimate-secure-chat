@@ -574,4 +574,11 @@ export class DirectP2PService {
   isInitialized(): boolean {
     return this.initialized;
   }
+
+  /**
+   * Get the user ID
+   */
+  getUserId(): string {
+    return this.userId;
+  }
 } 

@@ -279,7 +279,16 @@ const Chat: React.FC = () => {
   
   // If user is not connected, display a message
   if (!userProfile) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <MessageSquareIcon className="text-primary h-12 w-12 mb-4" />
+        <h1 className="text-xl font-semibold mb-2">SecureChat</h1>
+        <p className="text-muted mb-6">Chargement de votre profil...</p>
+        <div className="w-16 h-1 bg-muted/20 rounded-full overflow-hidden">
+          <div className="h-full bg-primary animate-pulse rounded-full"></div>
+        </div>
+      </div>
+    );
   }
   
   return (

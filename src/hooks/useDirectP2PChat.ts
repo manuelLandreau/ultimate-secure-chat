@@ -42,6 +42,12 @@ export const useDirectP2PChat = () => {
       setIsConnecting(true);
       setConnectionError(null);
       
+      // Ensure we don't have any existing service
+      if (p2pServiceRef.current) {
+        p2pServiceRef.current.disconnect();
+        p2pServiceRef.current = null;
+      }
+      
       // Generate key pair
       const keyPair = await generateKeyPair();
       
@@ -63,8 +69,15 @@ export const useDirectP2PChat = () => {
       // Connect to P2P network
       const userId = await p2pService.initialize(keyPair);
       
-      // Save reference
+      // Save reference - ensure this happens AFTER the initialize call
       p2pServiceRef.current = p2pService;
+      
+      // Verify the service is properly initialized
+      if (!p2pServiceRef.current.isInitialized()) {
+        throw new Error('Failed to initialize DirectP2P service properly');
+      }
+      
+      console.log('DirectP2P service initialization verified');
       
       // Create user profile
       const profile = {
@@ -117,6 +130,12 @@ export const useDirectP2PChat = () => {
       setIsConnecting(true);
       setConnectionError(null);
       
+      // Ensure we don't have any existing service
+      if (p2pServiceRef.current) {
+        p2pServiceRef.current.disconnect();
+        p2pServiceRef.current = null;
+      }
+      
       // Restore keys
       const keyPair = await restoreUserKeys();
       
@@ -142,8 +161,15 @@ export const useDirectP2PChat = () => {
       // Reconnect with the same ID
       await p2pService.initialize(keyPair);
       
-      // Save reference
+      // Save reference - AFTER initialize
       p2pServiceRef.current = p2pService;
+      
+      // Verify the service is properly initialized
+      if (!p2pServiceRef.current.isInitialized()) {
+        throw new Error('Failed to initialize DirectP2P service properly during reconnect');
+      }
+      
+      console.log('DirectP2P service reconnection verified');
       
       // Mark all contacts as initially disconnected
       contacts.forEach(contact => {
@@ -165,14 +191,35 @@ export const useDirectP2PChat = () => {
    */
   const connectToContact = async (ipAddress: string, name?: string) => {
     try {
+      // Check if the service reference exists
       if (!p2pServiceRef.current) {
-        console.error('DirectP2P service not initialized. Make sure you are logged in.');
+        console.error('DirectP2P service reference is null. Service not initialized.');
         throw new Error('Direct P2P service not initialized. Please log in first.');
       }
       
+      // Double check the initialized flag within the service
       if (!p2pServiceRef.current.isInitialized()) {
-        console.error('DirectP2P service initialized flag is false.');
-        throw new Error('Direct P2P service not fully initialized. Please try logging out and in again.');
+        console.error('DirectP2P service initialized flag is false. Current state:', {
+          hasRef: !!p2pServiceRef.current,
+          userId: p2pServiceRef.current?.getUserId() || 'unknown'
+        });
+        
+        // Try to re-initialize if possible
+        if (userProfile && userProfile.privateKeyJwk && userProfile.publicKeyJwk) {
+          console.log('Attempting to recover from uninitialized state...');
+          const success = await reconnect();
+          if (!success || !p2pServiceRef.current || !p2pServiceRef.current.isInitialized()) {
+            throw new Error('Failed to recover initialization. Please reload the page and try again.');
+          }
+          console.log('Successfully recovered initialization');
+        } else {
+          throw new Error('Direct P2P service not fully initialized. Please try logging out and in again.');
+        }
+      }
+      
+      // Verify once more that we have a service and it's initialized
+      if (!p2pServiceRef.current || !p2pServiceRef.current.isInitialized()) {
+        throw new Error('Service is still not properly initialized after recovery attempts');
       }
       
       // Add contact to store first (we'll use IP as the ID)
@@ -188,7 +235,9 @@ export const useDirectP2PChat = () => {
       }
       
       // Connect to peer
+      console.log(`Connecting to peer at IP: ${ipAddress}`);
       await p2pServiceRef.current.connectToPeer(ipAddress);
+      console.log(`Successfully connected to peer at IP: ${ipAddress}`);
       return true;
     } catch (error) {
       console.error('Error connecting to contact:', error);

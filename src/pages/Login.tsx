@@ -26,17 +26,31 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
-      const success = await reconnectP2P();
-      await reconnectDirectP2P();
+      console.log('Starting reconnection process...');
       
-      if (success) {
+      // Reconnect to P2P service
+      const p2pSuccess = await reconnectP2P();
+      console.log('P2P reconnection result:', p2pSuccess);
+      
+      // Reconnect to DirectP2P service
+      const directSuccess = await reconnectDirectP2P();
+      console.log('DirectP2P reconnection result:', directSuccess);
+      
+      if (p2pSuccess && directSuccess) {
+        console.log('Reconnection successful, navigating to chat');
         navigate('/chat');
       } else {
+        if (!p2pSuccess) {
+          console.error('Failed to reconnect P2P service');
+        }
+        if (!directSuccess) {
+          console.error('Failed to reconnect DirectP2P service');
+        }
         setError('Unable to reconnect. Please create a new profile.');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
-      console.error(err);
+      console.error('Reconnection error:', err);
+      setError('Connection error: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -55,12 +69,27 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
-      await initializeP2P(username);
-      await initializeDirectP2P(username);
+      // Initialiser les services dans un ordre précis
+      console.log('Starting profile creation process...');
+      
+      // Initialiser d'abord le P2P service standard
+      const userId = await initializeP2P(username);
+      console.log('P2P service initialized with user ID:', userId);
+      
+      // Puis initialiser le service DirectP2P
+      const directUserId = await initializeDirectP2P(username);
+      console.log('DirectP2P service initialized with user ID:', directUserId);
+      
+      // Vérifier que tout est bien initialisé
+      if (!isInitialized) {
+        throw new Error('Failed to complete initialization');
+      }
+      
+      // Rediriger vers le chat
       navigate('/chat');
     } catch (err) {
-      setError('Error creating profile. Please try again.');
-      console.error(err);
+      console.error('Initialization error:', err);
+      setError('Error creating profile. Please try again: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsLoading(false);
     }
