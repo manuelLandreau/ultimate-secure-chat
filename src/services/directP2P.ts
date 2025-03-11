@@ -4,7 +4,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import { KeyPair, encryptMessage, decryptMessage } from './crypto';
+import { KeyPair } from './crypto';
 import { 
   generateDHKeyPair, 
   exportDHPublicKey, 
@@ -25,9 +25,15 @@ export interface P2PMessage {
   payload: unknown;
 }
 
+// Interface pour les données chiffrées
+export interface EncryptedData {
+  ciphertext: string;
+  iv: string;
+}
+
 export interface TextMessage extends P2PMessage {
   type: 'TEXT';
-  payload: string | any; // Plain text or encrypted message
+  payload: string | EncryptedData; // Plain text or encrypted message
 }
 
 export interface FileMessage extends P2PMessage {
@@ -36,7 +42,7 @@ export interface FileMessage extends P2PMessage {
     name: string;
     size: number;
     type: string;
-    data: string | any; // Base64 of the file (potentially encrypted)
+    data: string | EncryptedData; // Base64 of the file (potentially encrypted)
   };
 }
 
@@ -372,7 +378,7 @@ export class DirectP2PService {
         // If the message is encrypted, decrypt it
         const textMsg = message as TextMessage;
         
-        if (typeof textMsg.payload === 'object' && textMsg.payload.ciphertext && textMsg.payload.iv) {
+        if (typeof textMsg.payload === 'object' && 'ciphertext' in textMsg.payload && 'iv' in textMsg.payload) {
           // Get the shared secret for this peer
           const sharedSecret = this.sharedSecrets.get(peerId);
           
@@ -380,7 +386,7 @@ export class DirectP2PService {
             // Decrypt the message using the shared secret
             const decryptedText = await decryptWithSharedSecret(
               sharedSecret,
-              textMsg.payload as { ciphertext: string, iv: string }
+              textMsg.payload as EncryptedData
             );
             
             // Replace the encrypted payload with the decrypted text
@@ -392,8 +398,8 @@ export class DirectP2PService {
         const fileMsg = message as FileMessage;
         
         if (typeof fileMsg.payload.data === 'object' && 
-            fileMsg.payload.data.ciphertext && 
-            fileMsg.payload.data.iv) {
+            'ciphertext' in fileMsg.payload.data && 
+            'iv' in fileMsg.payload.data) {
           // Get the shared secret for this peer
           const sharedSecret = this.sharedSecrets.get(peerId);
           
@@ -401,7 +407,7 @@ export class DirectP2PService {
             // Decrypt the file data using the shared secret
             const decryptedData = await decryptWithSharedSecret(
               sharedSecret,
-              fileMsg.payload.data as { ciphertext: string, iv: string }
+              fileMsg.payload.data as EncryptedData
             );
             
             // Replace the encrypted payload with the decrypted data
@@ -429,7 +435,7 @@ export class DirectP2PService {
     try {
       // Check if we have a shared secret with this peer
       const sharedSecret = this.sharedSecrets.get(peerId);
-      let payload: string | { ciphertext: string, iv: string } = text;
+      let payload: string | EncryptedData = text;
       
       // If we have a shared secret, encrypt the message
       if (sharedSecret) {
@@ -465,7 +471,7 @@ export class DirectP2PService {
       
       // Check if we have a shared secret with this peer
       const sharedSecret = this.sharedSecrets.get(peerId);
-      let data: string | { ciphertext: string, iv: string } = base64;
+      let data: string | EncryptedData = base64;
       
       // If we have a shared secret, encrypt the file data
       if (sharedSecret) {

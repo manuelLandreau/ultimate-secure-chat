@@ -8,7 +8,7 @@
     "url": "http://github.com/manuelLandreau/ultimate-secure-chat.git"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

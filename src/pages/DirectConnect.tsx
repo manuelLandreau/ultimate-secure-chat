@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
 import { Button, Input, Textarea } from '../components/ui';
-import { SunIcon, MoonIcon, UserPlusIcon, LogOutIcon, CopyIcon, GithubIcon } from 'lucide-react';
+import { SunIcon, MoonIcon, UserPlusIcon, CopyIcon, GithubIcon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
 /**
@@ -32,8 +32,6 @@ const DirectConnect: React.FC = () => {
     myUserId,
     isInitialized,
     isConnecting,
-    connectionError,
-    initialize,
     reconnect,
     connectToContact,
     handleContactOffer,

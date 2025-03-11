@@ -5,9 +5,9 @@
   --foreground: 0 0% 0%;
   --primary: 202 91.2% 59.8%;
   --primary-foreground: 100, 100%, 100%;
-  --muted: 214 32% 91%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --border: 214.3 31.8% 91.4%;
+  --muted: 202 32% 91%;
+  --muted-foreground: 202 16.3% 46.9%;
+  --border: 202 31.8% 91.4%;
 }
 
 .dark {
