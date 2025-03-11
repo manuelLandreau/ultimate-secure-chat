@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { nanoid } from 'nanoid';
 import { KeyPair, exportPrivateKey, exportPublicKey } from '../services/crypto';
 import { FileMessage, P2PMessage, TextMessage } from '../services/p2p';
 
@@ -148,6 +147,8 @@ const useStore = create<ChatState>()(
         
         // Supprime la conversation associée
         const { [contactId]: _, ...remainingConversations } = conversations;
+        // Utiliser _ comme convention pour indiquer que la variable est intentionnellement ignorée
+        void _; // Cette ligne empêche l'erreur de lint sur la variable non utilisée
         
         set({
           contacts: updatedContacts,

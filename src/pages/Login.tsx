@@ -7,7 +7,7 @@ import { SunIcon, MoonIcon, LockIcon, MessageSquareIcon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
 /**
- * Page de login ou création de profil
+ * Login or profile creation page
  */
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -15,10 +15,10 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const { initialize, isInitialized, reconnect } = useP2PChat();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   
-  // Tente de se reconnecter avec un profil existant
+  // Attempt to reconnect with an existing profile
   const handleReconnect = async () => {
     setIsLoading(true);
     setError(null);
@@ -29,22 +29,22 @@ const Login: React.FC = () => {
       if (success) {
         navigate('/chat');
       } else {
-        setError('Impossible de se reconnecter. Veuillez créer un nouveau profil.');
+        setError('Unable to reconnect. Please create a new profile.');
       }
     } catch (err) {
-      setError('Erreur de connexion. Veuillez réessayer.');
+      setError('Connection error. Please try again.');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
   
-  // Crée un nouveau profil
+  // Create a new profile
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!username.trim()) {
-      setError('Veuillez entrer un nom d\'utilisateur');
+      setError('Please enter a username');
       return;
     }
     
@@ -55,7 +55,7 @@ const Login: React.FC = () => {
       await initialize(username);
       navigate('/chat');
     } catch (err) {
-      setError('Erreur lors de la création du profil. Veuillez réessayer.');
+      setError('Error creating profile. Please try again.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -82,13 +82,13 @@ const Login: React.FC = () => {
         </div>
         
         <h1 className="mb-2 text-center text-2xl font-bold">Ultimate Secure Chat</h1>
-        <p className="mb-6 text-center text-muted">Messagerie chiffrée de bout en bout</p>
+        <p className="mb-6 text-center text-muted">End-to-end encrypted messaging</p>
         
         <div className="mb-6 flex items-center">
           <div className="flex-1 border-t border-border"></div>
           <div className="mx-4 text-sm text-muted">
             <LockIcon className="inline h-4 w-4 mr-1" /> 
-            Chiffrement E2E
+            E2E Encryption
           </div>
           <div className="flex-1 border-t border-border"></div>
         </div>
@@ -96,18 +96,18 @@ const Login: React.FC = () => {
         {isInitialized ? (
           <div className="space-y-4">
             <p className="text-center">
-              Vous avez déjà un profil configuré. Voulez-vous vous reconnecter?
+              You already have a configured profile. Do you want to reconnect?
             </p>
             <Button 
               onClick={handleReconnect} 
               className="w-full" 
               isLoading={isLoading}
             >
-              Se reconnecter
+              Reconnect
             </Button>
             <div className="flex items-center">
               <div className="flex-1 border-t border-border"></div>
-              <div className="mx-4 text-sm text-muted">ou</div>
+              <div className="mx-4 text-sm text-muted">or</div>
               <div className="flex-1 border-t border-border"></div>
             </div>
             <Button 
@@ -115,7 +115,7 @@ const Login: React.FC = () => {
               onClick={() => navigate('/chat')} 
               className="w-full"
             >
-              Créer un nouveau profil
+              Create a new profile
             </Button>
           </div>
         ) : (
@@ -124,7 +124,7 @@ const Login: React.FC = () => {
               <Input
                 id="username"
                 type="text"
-                placeholder="Entrez votre nom d'utilisateur"
+                placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 fullWidth
@@ -135,17 +135,17 @@ const Login: React.FC = () => {
             </div>
             
             <Button type="submit" className="w-full" isLoading={isLoading}>
-              Démarrer le chat
+              Start chatting
             </Button>
           </form>
         )}
         
         <div className="mt-6 text-center text-xs text-muted">
           <p>
-            Pas de serveur, pas de tracking, 100% privé.
+            No server, no tracking, 100% private.
           </p>
           <p className="mt-1">
-            Vos messages sont chiffrés avec AES-256 et RSA-4096.
+            Your messages are encrypted with AES-256 and RSA-4096.
           </p>
         </div>
       </div>

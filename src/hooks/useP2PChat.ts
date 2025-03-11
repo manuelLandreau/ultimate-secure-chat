@@ -2,20 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { P2PService } from '../services/p2p';
 import { generateKeyPair, importPrivateKey, importPublicKey, KeyPair } from '../services/crypto';
-import useStore, { Contact, Message } from '../stores/chatStore';
+import useStore, { Message } from '../stores/chatStore';
 
 /**
- * Hook personnalisé pour gérer les communications P2P et l'état de chat
+ * Custom hook to manage P2P communications and chat state
  */
 export const useP2PChat = () => {
-  // Référence au service P2P
+  // P2P service reference
   const p2pServiceRef = useRef<P2PService | null>(null);
   
-  // États locaux
+  // Local states
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<Error | null>(null);
   
-  // Accès au store global
+  // Access to global store
   const {
     userProfile,
     contacts,
@@ -26,7 +26,6 @@ export const useP2PChat = () => {
     updateUserKeys,
     addContact,
     updateContact,
-    removeContact,
     setActiveContactId,
     addMessage,
     markMessagesAsRead,
@@ -35,17 +34,17 @@ export const useP2PChat = () => {
   } = useStore();
   
   /**
-   * Initialise le service P2P et le profil utilisateur
+   * Initialize the P2P service and user profile
    */
   const initialize = async (username: string) => {
     try {
       setIsConnecting(true);
       setConnectionError(null);
       
-      // Génère une paire de clés
+      // Generate key pair
       const keyPair = await generateKeyPair();
       
-      // Initialise le service P2P
+      // Initialize P2P service
       const p2pService = new P2PService({
         onMessage: handleP2PMessage,
         onConnection: (peerId) => {
@@ -60,19 +59,19 @@ export const useP2PChat = () => {
         }
       });
       
-      // Connecte au réseau P2P
+      // Connect to P2P network
       const peerId = await p2pService.initialize(keyPair);
       
-      // Sauvegarde la référence
+      // Save reference
       p2pServiceRef.current = p2pService;
       
-      // Crée un profil utilisateur
+      // Create user profile
       const profile = {
         id: peerId,
         name: username
       };
       
-      // Enregistre dans le store
+      // Register in store
       setUserProfile(profile);
       await updateUserKeys(keyPair);
       
@@ -87,7 +86,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Restaure les clés de l'utilisateur depuis le stockage
+   * Restore user keys from storage
    */
   const restoreUserKeys = async (): Promise<KeyPair | null> => {
     try {
@@ -106,7 +105,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Reconnecte l'utilisateur (après redémarrage de l'app)
+   * Reconnect user (after app restart)
    */
   const reconnect = async () => {
     try {
@@ -117,14 +116,14 @@ export const useP2PChat = () => {
       setIsConnecting(true);
       setConnectionError(null);
       
-      // Restaure les clés
+      // Restore keys
       const keyPair = await restoreUserKeys();
       
       if (!keyPair) {
         throw new Error('Failed to restore encryption keys');
       }
       
-      // Initialise le service P2P
+      // Initialize P2P service
       const p2pService = new P2PService({
         onMessage: handleP2PMessage,
         onConnection: (peerId) => {
@@ -139,13 +138,13 @@ export const useP2PChat = () => {
         }
       });
       
-      // Reconnecte avec le même ID
+      // Reconnect with the same ID
       await p2pService.initialize(keyPair);
       
-      // Sauvegarde la référence
+      // Save reference
       p2pServiceRef.current = p2pService;
       
-      // Marque tous les contacts comme déconnectés initialement
+      // Mark all contacts as initially disconnected
       contacts.forEach(contact => {
         updateContact(contact.id, { isConnected: false });
       });
@@ -161,7 +160,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Ajoute un nouveau contact et se connecte à lui
+   * Add a new contact and connect to them
    */
   const connectToContact = async (contactId: string, name?: string) => {
     try {
@@ -169,11 +168,11 @@ export const useP2PChat = () => {
         throw new Error('P2P service not initialized');
       }
       
-      // Si le contact existe déjà, on ne fait que se connecter
+      // If the contact already exists, we just connect
       const existingContact = contacts.find(c => c.id === contactId);
       
       if (!existingContact) {
-        // Ajoute le contact au store
+        // Add contact to store
         addContact({
           id: contactId,
           name: name || `Contact-${contactId.substring(0, 6)}`,
@@ -181,7 +180,7 @@ export const useP2PChat = () => {
         });
       }
       
-      // Se connecte au pair
+      // Connect to peer
       await p2pServiceRef.current.connectToPeer(contactId);
       return true;
     } catch (error) {
@@ -192,7 +191,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Envoie un message texte
+   * Send a text message
    */
   const sendTextMessage = async (contactId: string, text: string): Promise<boolean> => {
     try {
@@ -204,29 +203,29 @@ export const useP2PChat = () => {
         await p2pServiceRef.current.connectToPeer(contactId);
       }
       
-      // Crée un ID unique pour le message
+      // Create unique ID for message
       const messageId = nanoid();
       
-      // Crée le message dans notre store local
+      // Create message in our local store
       const message: Message = {
         id: messageId,
         senderId: userProfile.id,
         recipientId: contactId,
         timestamp: Date.now(),
         isRead: false,
-        isSent: false,  // Sera mis à jour après envoi
+        isSent: false,  // Will be updated after sending
         isDelivered: false,
         type: 'text',
         content: text
       };
       
-      // Ajoute le message au store
+      // Add message to store
       addMessage(message);
       
-      // Envoie le message via P2P
+      // Send message via P2P
       const success = await p2pServiceRef.current.sendTextMessage(contactId, text);
       
-      // Met à jour le statut du message
+      // Update message status
       if (success) {
         updateMessageStatus(messageId, { isSent: true, isDelivered: true });
       }
@@ -240,7 +239,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Envoie un fichier
+   * Send a file
    */
   const sendFile = async (contactId: string, file: File): Promise<boolean> => {
     try {
@@ -252,13 +251,13 @@ export const useP2PChat = () => {
         await p2pServiceRef.current.connectToPeer(contactId);
       }
       
-      // Créer un ID unique pour le message
+      // Create unique ID for message
       const messageId = nanoid();
       
-      // Déterminer le type de message
+      // Determine message type
       const messageType = file.type.startsWith('image/') ? 'image' : 'file';
       
-      // Lecture du fichier en base64 pour prévisualisation locale
+      // Read file in base64 for local preview
       const fileReader = new FileReader();
       
       const fileDataPromise = new Promise<string>((resolve) => {
@@ -270,7 +269,7 @@ export const useP2PChat = () => {
       
       const fileData = await fileDataPromise;
       
-      // Crée le message dans notre store local
+      // Create message in our local store
       const message: Message = {
         id: messageId,
         senderId: userProfile.id,
@@ -288,13 +287,13 @@ export const useP2PChat = () => {
         }
       };
       
-      // Ajoute le message au store
+      // Add message to store
       addMessage(message);
       
-      // Envoie le fichier via P2P
+      // Send file via P2P
       const success = await p2pServiceRef.current.sendFile(contactId, file);
       
-      // Met à jour le statut du message
+      // Update message status
       if (success) {
         updateMessageStatus(messageId, { isSent: true, isDelivered: true });
       }
@@ -308,7 +307,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Met à jour le statut d'un message
+   * Update message status
    */
   const updateMessageStatus = (
     messageId: string,
@@ -318,7 +317,7 @@ export const useP2PChat = () => {
   };
   
   /**
-   * Se déconnecte du réseau P2P
+   * Disconnect from P2P network
    */
   const disconnect = () => {
     if (p2pServiceRef.current) {
@@ -327,7 +326,7 @@ export const useP2PChat = () => {
     }
   };
   
-  // Nettoyage lors du démontage du composant
+  // Cleanup when component unmounts
   useEffect(() => {
     return () => {
       disconnect();
@@ -335,7 +334,7 @@ export const useP2PChat = () => {
   }, []);
   
   return {
-    // État
+    // State
     userProfile,
     contacts,
     conversations,
@@ -356,7 +355,7 @@ export const useP2PChat = () => {
     clearConversation,
     disconnect,
     
-    // Accessoires
+    // Accessories
     myPeerId: userProfile?.id || null,
     activePeerConnections: p2pServiceRef.current?.getConnectedPeers() || []
   };

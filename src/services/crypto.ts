@@ -1,9 +1,9 @@
 /**
- * Service de cryptographie pour le chiffrement de bout en bout
- * Utilise l'API Web Crypto pour toutes les opérations cryptographiques
+ * Cryptography service for end-to-end encryption
+ * Uses the Web Crypto API for all cryptographic operations
  */
 
-// Constantes pour les algorithmes cryptographiques
+// Constants for cryptographic algorithms
 const KEY_ALGORITHM = { name: 'AES-GCM', length: 256 };
 const KEY_USAGES: KeyUsage[] = ['encrypt', 'decrypt'];
 const RSA_ALGORITHM = {
@@ -15,7 +15,7 @@ const RSA_ALGORITHM = {
 const RSA_USAGES: KeyUsage[] = ['encrypt', 'decrypt'];
 
 /**
- * Interface pour les clés publiques et privées
+ * Interface for public and private keys
  */
 export interface KeyPair {
   publicKey: CryptoKey;
@@ -23,16 +23,16 @@ export interface KeyPair {
 }
 
 /**
- * Interface pour les messages chiffrés
+ * Interface for encrypted messages
  */
 export interface EncryptedMessage {
-  iv: string; // Initialization Vector en base64
-  ciphertext: string; // Texte chiffré en base64
-  encryptedKey: string; // Clé AES chiffrée avec la clé publique du destinataire en base64
+  iv: string; // Initialization Vector in base64
+  ciphertext: string; // Ciphertext in base64
+  encryptedKey: string; // AES key encrypted with recipient's public key in base64
 }
 
 /**
- * Génère une paire de clés RSA pour le chiffrement asymétrique
+ * Generates an RSA key pair for asymmetric encryption
  */
 export async function generateKeyPair(): Promise<KeyPair> {
   try {
@@ -47,13 +47,13 @@ export async function generateKeyPair(): Promise<KeyPair> {
       privateKey: keyPair.privateKey
     };
   } catch (error) {
-    console.error('Erreur lors de la génération de la paire de clés:', error);
+    console.error('Error generating key pair:', error);
     throw new Error('Impossible de générer les clés de chiffrement');
   }
 }
 
 /**
- * Exporte une clé publique au format JWK (JSON Web Key)
+ * Export a public key in JWK (JSON Web Key) format
  */
 export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {
   try {
@@ -66,7 +66,7 @@ export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {
 }
 
 /**
- * Importe une clé publique depuis le format JWK
+ * Import a public key from JWK format
  */
 export async function importPublicKey(jwkString: string): Promise<CryptoKey> {
   try {
@@ -85,7 +85,7 @@ export async function importPublicKey(jwkString: string): Promise<CryptoKey> {
 }
 
 /**
- * Exporte une clé privée au format JWK (à stocker de manière sécurisée)
+ * Export a private key in JWK (to be stored securely) format
  */
 export async function exportPrivateKey(privateKey: CryptoKey): Promise<string> {
   try {
@@ -98,7 +98,7 @@ export async function exportPrivateKey(privateKey: CryptoKey): Promise<string> {
 }
 
 /**
- * Importe une clé privée depuis le format JWK
+ * Import a private key from JWK format
  */
 export async function importPrivateKey(jwkString: string): Promise<CryptoKey> {
   try {
@@ -117,7 +117,7 @@ export async function importPrivateKey(jwkString: string): Promise<CryptoKey> {
 }
 
 /**
- * Génère une clé AES pour le chiffrement symétrique
+ * Generates an AES key for symmetric encryption
  */
 export async function generateAESKey(): Promise<CryptoKey> {
   try {
@@ -133,24 +133,24 @@ export async function generateAESKey(): Promise<CryptoKey> {
 }
 
 /**
- * Chiffre un message avec la clé publique du destinataire
+ * Encrypts a message with the recipient's public key
  */
 export async function encryptMessage(
   message: string,
   recipientPublicKey: CryptoKey
 ): Promise<EncryptedMessage> {
   try {
-    // Génère une clé AES temporaire pour ce message
+    // Generates a temporary AES key for this message
     const aesKey = await generateAESKey();
     
-    // Convertit le message en ArrayBuffer
+    // Converts the message to ArrayBuffer
     const encoder = new TextEncoder();
     const data = encoder.encode(message);
     
-    // Génère un vecteur d'initialisation (IV)
+    // Generates an initialization vector (IV)
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     
-    // Chiffre le message avec la clé AES
+    // Encrypts the message with the AES key
     const ciphertext = await window.crypto.subtle.encrypt(
       {
         name: KEY_ALGORITHM.name,
@@ -160,10 +160,10 @@ export async function encryptMessage(
       data
     );
     
-    // Exporte la clé AES
+    // Exports the AES key
     const rawKey = await window.crypto.subtle.exportKey('raw', aesKey);
     
-    // Chiffre la clé AES avec la clé publique RSA du destinataire
+    // Encrypts the AES key with the recipient's RSA public key
     const encryptedKey = await window.crypto.subtle.encrypt(
       {
         name: RSA_ALGORITHM.name
@@ -172,7 +172,7 @@ export async function encryptMessage(
       rawKey
     );
     
-    // Encode les données binaires en base64 pour le transport
+    // Encodes binary data to base64 for transport
     return {
       iv: bufferToBase64(iv),
       ciphertext: bufferToBase64(ciphertext),
@@ -185,19 +185,19 @@ export async function encryptMessage(
 }
 
 /**
- * Déchiffre un message chiffré avec la clé privée du destinataire
+ * Decrypts an encrypted message with the recipient's private key
  */
 export async function decryptMessage(
   encryptedMsg: EncryptedMessage,
   privateKey: CryptoKey
 ): Promise<string> {
   try {
-    // Décode les données en base64
+    // Decodes data from base64
     const iv = base64ToBuffer(encryptedMsg.iv);
     const ciphertext = base64ToBuffer(encryptedMsg.ciphertext);
     const encryptedKey = base64ToBuffer(encryptedMsg.encryptedKey);
     
-    // Déchiffre la clé AES avec la clé privée RSA
+    // Decrypts the AES key with the recipient's RSA private key
     const rawKey = await window.crypto.subtle.decrypt(
       {
         name: RSA_ALGORITHM.name
@@ -206,7 +206,7 @@ export async function decryptMessage(
       encryptedKey
     );
     
-    // Importe la clé AES déchiffrée
+    // Imports the decrypted AES key
     const aesKey = await window.crypto.subtle.importKey(
       'raw',
       rawKey,
@@ -215,7 +215,7 @@ export async function decryptMessage(
       ['decrypt']
     );
     
-    // Déchiffre le message avec la clé AES
+    // Decrypts the message with the AES key
     const decrypted = await window.crypto.subtle.decrypt(
       {
         name: KEY_ALGORITHM.name,
@@ -225,7 +225,7 @@ export async function decryptMessage(
       ciphertext
     );
     
-    // Convertit le résultat en chaîne de caractères
+    // Converts the result to a string
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
   } catch (error) {
@@ -235,7 +235,7 @@ export async function decryptMessage(
 }
 
 /**
- * Fonctions utilitaires pour la conversion entre ArrayBuffer et Base64
+ * Utility functions for converting between ArrayBuffer and Base64
  */
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);

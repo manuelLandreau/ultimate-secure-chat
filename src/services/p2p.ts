@@ -1,13 +1,13 @@
 /**
- * Service pour la communication peer-to-peer avec WebRTC
- * Utilise PeerJS comme couche d'abstraction sur WebRTC
+ * Service for peer-to-peer communication with WebRTC
+ * Uses PeerJS as an abstraction layer over WebRTC
  */
 
 import Peer, { DataConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import { EncryptedMessage, KeyPair, encryptMessage, decryptMessage, exportPublicKey, importPublicKey } from './crypto';
 
-// Types pour les messages
+// Message types
 export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'KEY_EXCHANGE' | 'CALL_REQUEST' | 'CALL_RESPONSE';
 
 export interface P2PMessage {
@@ -15,7 +15,7 @@ export interface P2PMessage {
   type: MessageType;
   sender: string;
   timestamp: number;
-  payload: any;
+  payload: unknown;
 }
 
 export interface TextMessage extends P2PMessage {
@@ -29,7 +29,7 @@ export interface FileMessage extends P2PMessage {
     name: string;
     size: number;
     type: string;
-    data: string | EncryptedMessage; // Base64 du fichier (potentiellement chiffré)
+    data: string | EncryptedMessage; // Base64 of the file (potentially encrypted)
   };
 }
 
@@ -60,16 +60,16 @@ export class P2PService {
   }
 
   /**
-   * Initialise la connexion P2P
+   * Initialise the P2P connection
    */
   async initialize(keyPair: KeyPair): Promise<string> {
     try {
       this.keyPair = keyPair;
       
-      // Génère un ID aléatoire pour ce peer
+      // Generate a random ID for this peer
       this.peerId = nanoid(10);
       
-      // Initialise PeerJS
+      // Initialize PeerJS
       this.peer = new Peer(this.peerId);
       
       return new Promise((resolve, reject) => {
@@ -97,7 +97,7 @@ export class P2PService {
   }
 
   /**
-   * Configure les écouteurs d'événements pour Peer
+   * Configure the event listeners for Peer
    */
   private setupPeerEvents(): void {
     if (!this.peer) return;
@@ -109,17 +109,17 @@ export class P2PService {
   }
 
   /**
-   * Gère une nouvelle connexion
+   * Handles a new connection
    */
   private handleConnection(conn: DataConnection): void {
-    // Enregistre la connexion
+    // Register the connection
     this.connections.set(conn.peer, conn);
     
     conn.on('open', () => {
       console.log('Connection established with:', conn.peer);
       this.callbacks.onConnection(conn.peer);
       
-      // Échange de clés
+      // Exchange keys
       this.exchangeKeys(conn.peer);
     });
     
@@ -142,7 +142,7 @@ export class P2PService {
   }
 
   /**
-   * Se connecte à un autre peer
+   * Connect to another peer
    */
   connectToPeer(peerId: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -152,7 +152,7 @@ export class P2PService {
       }
       
       if (this.connections.has(peerId)) {
-        resolve(); // Déjà connecté
+        resolve(); // Already connected
         return;
       }
       
@@ -175,7 +175,7 @@ export class P2PService {
   }
 
   /**
-   * Échange des clés publiques
+   * Exchange public keys
    */
   private async exchangeKeys(peerId: string): Promise<void> {
     try {
@@ -203,7 +203,7 @@ export class P2PService {
   }
 
   /**
-   * Envoie un message à un peer
+   * Send a message to a peer
    */
   private sendToPeer(peerId: string, message: P2PMessage): boolean {
     const conn = this.connections.get(peerId);
@@ -223,27 +223,27 @@ export class P2PService {
   }
 
   /**
-   * Traite un message reçu
+   * Handles a received message
    */
   private async handleMessage(peerId: string, message: P2PMessage): Promise<void> {
     try {
-      // Traitement selon le type de message
+      // Message processing based on type
       if (message.type === 'KEY_EXCHANGE') {
         const keyMsg = message as KeyExchangeMessage;
         const publicKey = await importPublicKey(keyMsg.payload.publicKey);
         this.peerPublicKeys.set(peerId, publicKey);
         
-        // Notification au système de la connexion sécurisée
+        // Notification to the system about the secure connection
         console.log('Secure connection established with peer:', peerId);
       } else if (message.type === 'TEXT') {
-        // Si le message est chiffré, on le déchiffre
+        // If the message is encrypted, decrypt it
         const textMsg = message as TextMessage;
         if (typeof textMsg.payload !== 'string' && this.keyPair) {
           const encrypted = textMsg.payload as EncryptedMessage;
           textMsg.payload = await decryptMessage(encrypted, this.keyPair.privateKey);
         }
       } else if (message.type === 'IMAGE' || message.type === 'FILE') {
-        // Si le fichier est chiffré, on le déchiffre
+        // If the file is encrypted, decrypt it
         const fileMsg = message as FileMessage;
         if (typeof fileMsg.payload.data !== 'string' && this.keyPair) {
           const encrypted = fileMsg.payload.data as EncryptedMessage;
@@ -251,7 +251,7 @@ export class P2PService {
         }
       }
       
-      // Appel du callback pour traiter le message
+      // Callback call to process the message
       this.callbacks.onMessage(message);
     } catch (error) {
       console.error('Error handling message:', error);
@@ -260,13 +260,13 @@ export class P2PService {
   }
 
   /**
-   * Envoie un message texte
+   * Send a text message
    */
   async sendTextMessage(peerId: string, text: string): Promise<boolean> {
     try {
       let payload: string | EncryptedMessage = text;
       
-      // Chiffrement du message si on a la clé publique du destinataire
+      // Encrypt the message if we have the public key of the recipient
       const recipientKey = this.peerPublicKeys.get(peerId);
       if (recipientKey) {
         payload = await encryptMessage(text, recipientKey);
@@ -289,11 +289,11 @@ export class P2PService {
   }
 
   /**
-   * Envoie un fichier
+   * Send a file
    */
   async sendFile(peerId: string, file: File): Promise<boolean> {
     try {
-      // Lecture du fichier
+      // Read the file
       const fileBuffer = await file.arrayBuffer();
       const base64Data = btoa(
         new Uint8Array(fileBuffer).reduce(
@@ -304,7 +304,7 @@ export class P2PService {
       
       let fileData: string | EncryptedMessage = base64Data;
       
-      // Chiffrement si on a la clé publique du destinataire
+      // Encrypt if we have the public key of the recipient
       const recipientKey = this.peerPublicKeys.get(peerId);
       if (recipientKey) {
         fileData = await encryptMessage(base64Data, recipientKey);
@@ -336,7 +336,7 @@ export class P2PService {
   }
 
   /**
-   * Déconnecte tous les peers
+   * Disconnect all peers
    */
   disconnect(): void {
     this.connections.forEach((conn) => {
@@ -353,21 +353,21 @@ export class P2PService {
   }
 
   /**
-   * Vérifie si on est connecté à un peer
+   * Check if connected to a peer
    */
   isConnectedTo(peerId: string): boolean {
     return this.connections.has(peerId);
   }
 
   /**
-   * Récupère la liste des peers connectés
+   * Get the list of connected peers
    */
   getConnectedPeers(): string[] {
     return Array.from(this.connections.keys());
   }
 
   /**
-   * Récupère son propre ID
+   * Get own ID
    */
   getMyPeerId(): string {
     return this.peerId;

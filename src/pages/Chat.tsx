@@ -17,18 +17,19 @@ import {
   LogOutIcon,
   CopyIcon,
   MessageSquareIcon,
+  GithubIcon
 } from 'lucide-react';
 import { Message } from '../stores/chatStore';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 /**
- * Page principale du chat
+ * Main chat page
  */
 const Chat: React.FC = () => {
   const navigate = useNavigate();
   const { toggleTheme, isDark } = useTheme();
   
-  // États locaux
+  // Local states
   const [message, setMessage] = useState('');
   const [peerIdInput, setPeerIdInput] = useState('');
   const [showContactForm, setShowContactForm] = useState(false);
@@ -37,7 +38,7 @@ const Chat: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Accès au hook P2P
+  // P2P hook access
   const {
     userProfile,
     contacts,
@@ -50,40 +51,40 @@ const Chat: React.FC = () => {
     myPeerId,
   } = useP2PChat();
   
-  // Redirige vers la page de login si non connecté
+  // Redirect to login page if not connected
   useEffect(() => {
     if (!userProfile) {
       navigate('/');
     }
   }, [userProfile, navigate]);
   
-  // Messages de la conversation active
+  // Active conversation messages
   const activeConversation = activeContactId ? conversations[activeContactId] : null;
   const messages = activeConversation?.messages || [];
   
-  // Contact actif
+  // Active contact
   const activeContact = contacts.find((contact) => contact.id === activeContactId);
   
-  // Trie les contacts par date du dernier message
+  // Sort contacts by last message date
   const sortedContacts = [...contacts].sort((a, b) => {
     const aLastMessage = conversations[a.id]?.lastMessageTimestamp || 0;
     const bLastMessage = conversations[b.id]?.lastMessageTimestamp || 0;
     return bLastMessage - aLastMessage;
   });
   
-  // Copie l'ID du pair dans le presse-papier
+  // Copy peer ID to clipboard
   const copyPeerId = () => {
     if (myPeerId) {
       navigator.clipboard.writeText(myPeerId);
     }
   };
   
-  // Se connecte à un nouveau contact
+  // Connect to a new contact
   const handleConnectToPeer = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!peerIdInput.trim()) {
-      setError('Veuillez entrer un ID valide');
+      setError('Please enter a valid ID');
       return;
     }
     
@@ -96,20 +97,20 @@ const Chat: React.FC = () => {
       if (success) {
         setPeerIdInput('');
         setShowContactForm(false);
-        // Sélectionne le nouveau contact
+        // Select the new contact
         setActiveContact(peerIdInput);
       } else {
-        setError('Impossible de se connecter à ce pair.');
+        setError('Unable to connect to this peer.');
       }
     } catch (err) {
-      setError('Erreur de connexion. Veuillez réessayer.');
+      setError('Connection error. Please try again.');
       console.error(err);
     } finally {
       setIsConnecting(false);
     }
   };
   
-  // Envoie un message texte
+  // Send a text message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
@@ -128,12 +129,12 @@ const Chat: React.FC = () => {
     }
   };
   
-  // Ajoute un emoji au message
+  // Add an emoji to the message
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setMessage(prev => prev + emojiData.emoji);
   };
   
-  // Envoie un fichier
+  // Send a file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     
@@ -145,20 +146,20 @@ const Chat: React.FC = () => {
       const file = files[0];
       await sendFile(activeContactId, file);
       
-      // Réinitialise l'input file
+      // Reset file input
       e.target.value = '';
     } catch (err) {
       console.error('Error sending file:', err);
     }
   };
   
-  // Formatage de la date
+  // Date formatting
   const formatMessageTime = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   
-  // Formatage de la date courte pour le dernier message
+  // Short date formatting for last message
   const formatShortDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const today = new Date();
@@ -168,13 +169,13 @@ const Chat: React.FC = () => {
     if (date.toDateString() === today.toDateString()) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hier';
+      return 'Yesterday';
     } else {
       return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
     }
   };
   
-  // Groupe les messages par date
+  // Group messages by date
   const groupMessagesByDate = (messages: Message[]) => {
     const groups: { date: string; messages: Message[] }[] = [];
     
@@ -192,7 +193,7 @@ const Chat: React.FC = () => {
     return groups;
   };
   
-  // Formatage de la date pour les groupes
+  // Date formatting for groups
   const formatGroupDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
@@ -200,15 +201,15 @@ const Chat: React.FC = () => {
     yesterday.setDate(today.getDate() - 1);
     
     if (date.toDateString() === today.toDateString()) {
-      return 'Aujourd\'hui';
+      return 'Today';
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Hier';
+      return 'Yesterday';
     } else {
       return date.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
     }
   };
   
-  // Rendu du contenu du message
+  // Render message content
   const renderMessageContent = (message: Message) => {
     if (message.type === 'text') {
       return <p className="whitespace-pre-wrap break-words">{message.content}</p>;
@@ -263,14 +264,14 @@ const Chat: React.FC = () => {
     return null;
   };
   
-  // Si l'utilisateur n'est pas connecté, afficher un message
+  // If user is not connected, display a message
   if (!userProfile) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
   
   return (
     <div className="flex h-screen w-full flex-col bg-background">
-      {/* En-tête */}
+      {/* Header */}
       <header className="flex h-16 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-2">
           <button
@@ -286,6 +287,14 @@ const Chat: React.FC = () => {
           <Button 
             variant="ghost" 
             size="icon" 
+            onClick={() => window.open('https://github.com/manuelLandreau/utimate-secure-chat', '_blank')}
+            aria-label="GitHub"
+          >
+            <GithubIcon size={20} />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={toggleTheme}
             aria-label="Toggle theme"
           >
@@ -295,14 +304,33 @@ const Chat: React.FC = () => {
       </header>
       
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Liste des contacts */}
+        {/* Mobile overlay - backdrop for the sidebar */}
+        {showMobileMenu && (
+          <div 
+            className="fixed inset-0 z-5 bg-black/50 md:hidden" 
+            onClick={() => setShowMobileMenu(false)}
+            aria-hidden="true"
+          />
+        )}
+        
+        {/* Sidebar - Contact list */}
         <aside 
           className={`${
             showMobileMenu ? 'translate-x-0' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-10 flex w-72 flex-col border-r border-border bg-background pt-16 transition-transform duration-300 ease-in-out md:static md:translate-x-0`}
+          } fixed inset-y-0 left-0 z-20 flex w-72 flex-col border-r border-border bg-black pt-16 transition-transform duration-300 ease-in-out md:static md:translate-x-0`}
+          style={{ backgroundColor: isDark ? 'black' : 'white' }}
         >
+          {/* Close button for mobile - positioned at the top right */}
+          <button 
+            className="absolute right-4 top-4 p-1 md:hidden" 
+            onClick={() => setShowMobileMenu(false)}
+            aria-label="Close menu"
+          >
+            <XIcon size={22} />
+          </button>
+          
           <div className="flex items-center justify-between border-b border-border p-4">
-            <h2 className="font-medium">Mes contacts</h2>
+            <h2 className="font-medium">My contacts</h2>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -313,12 +341,12 @@ const Chat: React.FC = () => {
             </Button>
           </div>
           
-          {/* Formulaire pour ajouter un contact */}
+          {/* Form to add a contact */}
           {showContactForm && (
             <div className="border-b border-border p-4">
               <form onSubmit={handleConnectToPeer} className="space-y-3">
                 <Input
-                  placeholder="ID du contact"
+                  placeholder="Contact ID"
                   value={peerIdInput}
                   onChange={(e) => setPeerIdInput(e.target.value)}
                   fullWidth
@@ -330,15 +358,15 @@ const Chat: React.FC = () => {
                   className="w-full" 
                   isLoading={isConnecting}
                 >
-                  Ajouter
+                  Add
                 </Button>
               </form>
             </div>
           )}
           
-          {/* Mon ID */}
+          {/* My ID */}
           <div className="border-b border-border p-4">
-            <p className="mb-1 text-xs text-muted">Mon ID:</p>
+            <p className="mb-1 text-xs text-muted">My ID:</p>
             <div className="flex items-center gap-2">
               <code className="block truncate rounded bg-muted/20 px-2 py-1 text-xs flex-1">
                 {myPeerId}
@@ -355,13 +383,13 @@ const Chat: React.FC = () => {
             </div>
           </div>
           
-          {/* Liste des contacts */}
+          {/* Contact list */}
           <div className="flex-1 overflow-y-auto">
             {sortedContacts.length === 0 ? (
               <div className="flex h-full items-center justify-center p-4 text-center text-muted">
                 <div>
-                  <p>Aucun contact</p>
-                  <p className="text-sm">Ajoutez un contact pour commencer à discuter</p>
+                  <p>No contacts</p>
+                  <p className="text-sm">Add a contact to start chatting</p>
                 </div>
               </div>
             ) : (
@@ -402,7 +430,7 @@ const Chat: React.FC = () => {
                                 ? lastMessage.content
                                 : lastMessage.type === 'image'
                                 ? '📷 Image'
-                                : `📎 ${lastMessage.metadata?.fileName || 'Fichier'}`}
+                                : `📎 ${lastMessage.metadata?.fileName || 'File'}`}
                             </p>
                           )}
                         </div>
@@ -419,7 +447,7 @@ const Chat: React.FC = () => {
             )}
           </div>
           
-          {/* Bouton de déconnexion */}
+          {/* Logout button */}
           <div className="border-t border-border p-2">
             <Button
               variant="ghost"
@@ -427,16 +455,16 @@ const Chat: React.FC = () => {
               onClick={() => navigate('/')}
             >
               <LogOutIcon className="mr-2 h-4 w-4" />
-              Déconnexion
+              Logout
             </Button>
           </div>
         </aside>
         
-        {/* Zone principale de chat */}
+        {/* Main chat area */}
         <main className="flex-1 overflow-hidden">
           {activeContactId ? (
             <div className="flex h-full flex-col">
-              {/* En-tête de la conversation */}
+              {/* Conversation header */}
               <div className="flex h-16 items-center justify-between border-b border-border px-4">
                 <div className="flex items-center gap-3">
                   <button
@@ -454,7 +482,7 @@ const Chat: React.FC = () => {
                       <div>
                         <p className="font-medium">{activeContact.name}</p>
                         <p className="text-xs text-muted">
-                          {activeContact.isConnected ? 'En ligne' : 'Hors ligne'}
+                          {activeContact.isConnected ? 'Online' : 'Offline'}
                         </p>
                       </div>
                     </>
@@ -467,8 +495,8 @@ const Chat: React.FC = () => {
                 {messages.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-center text-muted">
                     <div>
-                      <p>Aucun message</p>
-                      <p className="text-sm">Envoyez un message pour commencer la conversation</p>
+                      <p>No messages</p>
+                      <p className="text-sm">Send a message to start the conversation</p>
                     </div>
                   </div>
                 ) : (
@@ -481,7 +509,7 @@ const Chat: React.FC = () => {
                           </span>
                         </div>
                         
-                        {group.messages.map((msg, i) => {
+                        {group.messages.map((msg) => {
                           const isMyMessage = msg.senderId === userProfile.id;
                           
                           return (
@@ -565,14 +593,14 @@ const Chat: React.FC = () => {
                 )}
               </div>
               
-              {/* Zone de saisie */}
+              {/* Input area */}
               <div className="border-t border-border p-4">
                 <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                   <div className="relative flex-1">
                     <Input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Écrivez votre message..."
+                      placeholder="Type your message..."
                       fullWidth
                       className="pr-10"
                     />
@@ -636,10 +664,10 @@ const Chat: React.FC = () => {
                   <MessageSquareIcon className="h-12 w-12 text-muted" />
                 </div>
                 <h2 className="mb-2 text-xl font-medium text-foreground">
-                  Sélectionnez un contact pour commencer
+                  Select a contact to start
                 </h2>
                 <p className="mb-6">
-                  Choisissez un contact existant ou ajoutez-en un nouveau pour commencer à discuter de manière sécurisée.
+                  Choose an existing contact or add a new one to start chatting securely.
                 </p>
                 <Button 
                   variant="outline" 
@@ -649,7 +677,7 @@ const Chat: React.FC = () => {
                   }}
                 >
                   <UserPlusIcon className="mr-2 h-4 w-4" />
-                  Ajouter un contact
+                  Add a new contact
                 </Button>
               </div>
             </div>

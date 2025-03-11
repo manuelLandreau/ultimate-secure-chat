@@ -1,102 +1,113 @@
 # Ultimate Secure Chat
 
-Une application de chat sécurisée, décentralisée et chiffrée de bout en bout qui respecte votre vie privée.
+A secure, decentralized, end-to-end encrypted chat application that respects your privacy.
 
-![Screenshot de l'application](./screenshot.png)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manuelLandreau/utimate-secure-chat)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-green?logo=web)](https://manuellandreau.github.io/ultimate-secure-chat)
 
-## Caractéristiques
+![Application Screenshot](./screenshot.png)
 
-- **Chiffrement de bout en bout (E2EE)** - Tous les messages sont chiffrés sur l'appareil de l'expéditeur et déchiffrés uniquement sur l'appareil du destinataire.
-- **Communication P2P** - Communication directe entre utilisateurs sans serveur central.
-- **Interface utilisateur moderne** - Interface utilisateur responsive et intuitive.
-- **Progressive Web App (PWA)** - Fonctionne hors ligne et peut être installée sur mobile et desktop.
-- **Zero backend** - Pas de serveur, pas de base de données, pas de tracking. Vos données restent sur votre appareil.
-- **Partage de fichiers** - Envoi et réception de fichiers et images.
-- **Open Source** - Le code est entièrement ouvert et disponible pour examen.
+> **Note**: This application was created for educational purposes to demonstrate secure communication principles and cryptographic implementations in web applications.
+>
+> **Try it now**: Access the [live demo](https://utimate-secure-chat.vercel.app) to see the application in action!
 
-## Technologies utilisées
+## Features
 
-- **React** - Bibliothèque d'UI
-- **TypeScript** - Typage statique
+- **End-to-End Encryption (E2EE)** - All messages are encrypted on the sender's device and decrypted only on the recipient's device.
+- **P2P Communication** - Direct communication between users without a central server.
+- **Modern User Interface** - Responsive and intuitive user interface.
+- **Progressive Web App (PWA)** - Works offline and can be installed on mobile and desktop.
+- **Zero Backend** - No server, no database, no tracking. Your data stays on your device.
+- **File Sharing** - Send and receive files and images.
+- **Open Source** - The code is fully open and available for review.
+
+## Technologies Used
+
+- **React** - UI library
+- **TypeScript** - Static typing
 - **Vite** - Build tool
-- **TailwindCSS** - Framework CSS utilitaire
-- **Web Crypto API** - Cryptographie côté client
-- **IndexedDB / LocalStorage** - Stockage local
-- **WebRTC** - Communication P2P
+- **TailwindCSS** - Utility-first CSS framework
+- **Web Crypto API** - Client-side cryptography
+- **IndexedDB / LocalStorage** - Local storage
+- **WebRTC** - P2P communication
 
-## Architecture technique
+## Technical Architecture
 
-### Cryptographie
+### Cryptography
 
-Ultimate Secure Chat utilise un modèle de cryptographie hybride:
+Ultimate Secure Chat uses a hybrid cryptography model:
 
-1. **Asymétrique (RSA)**: Chaque utilisateur génère une paire de clés RSA-4096 au premier démarrage.
-2. **Symétrique (AES)**: Pour chaque message, une clé AES-256 temporaire est générée.
-3. **Processus de chiffrement**:
-   - Le message est chiffré avec la clé AES temporaire.
-   - La clé AES est chiffrée avec la clé publique RSA du destinataire.
-   - Le message chiffré et la clé chiffrée sont envoyés ensemble.
-4. **Processus de déchiffrement**:
-   - Le destinataire déchiffre la clé AES avec sa clé privée RSA.
-   - Le message est déchiffré avec la clé AES déchiffrée.
+1. **Asymmetric (RSA)**: Each user generates an RSA-4096 key pair on first startup.
+2. **Symmetric (AES)**: For each message, a temporary AES-256 key is generated.
+3. **Encryption Process**:
+   - The message is encrypted with the temporary AES key.
+   - The AES key is encrypted with the recipient's RSA public key.
+   - The encrypted message and encrypted key are sent together.
+4. **Decryption Process**:
+   - The recipient decrypts the AES key with their RSA private key.
+   - The message is decrypted with the decrypted AES key.
 
-Aucune clé privée ne quitte jamais l'appareil de l'utilisateur. Les messages ne peuvent être lus que par l'expéditeur et le destinataire prévu.
+No private key ever leaves the user's device. Messages can only be read by the sender and the intended recipient.
 
-### Communication P2P
+### P2P Communication
 
-La communication entre pairs est établie en utilisant WebRTC via PeerJS:
+Peer-to-peer communication is established using WebRTC via PeerJS:
 
-1. Chaque utilisateur a un ID unique généré à la connexion.
-2. L'ID peut être partagé avec d'autres utilisateurs pour établir la connexion.
-3. Les données échangées via le canal de données WebRTC sont déjà chiffrées par E2EE.
+1. Each user has a unique ID generated on connection.
+2. The ID can be shared with other users to establish the connection.
+3. Data exchanged via the WebRTC data channel is already encrypted by E2EE.
 
-## Installation et exécution
+## Installation and Execution
 
-### Prérequis
+### Live Demo
 
-- Node.js 16+ et npm
+You can try the application without installation by visiting the [live demo](https://utimate-secure-chat.vercel.app).
+
+### Prerequisites
+
+- Node.js 16+ and npm
 
 ### Installation
 
 ```bash
-# Cloner le dépôt
-git clone https://github.com/yourusername/ultimate-secure-chat.git
-cd ultimate-secure-chat
+# Clone the repository
+git clone https://github.com/manuelLandreau/utimate-secure-chat.git
+cd utimate-secure-chat
 
-# Installer les dépendances
+# Install dependencies
 npm install
 
-# Lancer en développement
+# Run in development mode
 npm run dev
 
-# Build pour production
+# Build for production
 npm run build
 ```
 
-## Déploiement
+## Deployment
 
-L'application peut être déployée sur n'importe quel hébergement statique:
+The application can be deployed on any static hosting:
 
 ```bash
-# Build pour production
+# Build for production
 npm run build
 
-# Les fichiers se trouvent dans le dossier dist/
+# Files are located in the dist/ folder
 ```
 
-## Sécurité
+## Security
 
-- **Pas de serveur central**: Aucun serveur qui pourrait être compromis.
-- **Chiffrement local**: Toutes les opérations cryptographiques sont effectuées localement.
-- **Clés générées localement**: Les clés ne quittent jamais votre appareil.
-- **Code open source**: Le code est disponible pour inspection.
+- **No Central Server**: No server that could be compromised.
+- **Local Encryption**: All cryptographic operations are performed locally.
+- **Locally Generated Keys**: Keys never leave your device.
+- **Open Source Code**: Code is available for inspection.
 
 ## Limitations
 
-- **Disponibilité**: Les deux utilisateurs doivent être en ligne en même temps pour échanger des messages.
-- **Pérennité des messages**: Les messages ne sont stockés que localement et peuvent être perdus si le stockage local est effacé.
-- **Compatibilité navigateur**: Nécessite un navigateur moderne supportant WebRTC et les API Web Crypto.
+- **Availability**: Both users must be online at the same time to exchange messages.
+- **Message Durability**: Messages are only stored locally and may be lost if local storage is cleared.
+- **Browser Compatibility**: Requires a modern browser supporting WebRTC and Web Crypto APIs.
 
-## Licence
+## License
 
-Ce projet est distribué sous la licence MIT. Voir le fichier `LICENSE` pour plus d'informations.
+This project is distributed under the MIT License. See the `LICENSE` file for more information.
