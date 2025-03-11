@@ -5,7 +5,6 @@ A secure, decentralized, end-to-end encrypted chat application that respects you
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manuelLandreau/ultimate-secure-chat)
 [![Live Demo](https://img.shields.io/badge/Live-Demo-green?logo=web)](https://ultimate-secure-chat.vercel.app)
 [![Build and Deploy](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/deploy.yml/badge.svg)](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/deploy.yml)
-[![Test and Validate](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/test.yml/badge.svg)](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/test.yml)
 
 ![Application Screenshot](./screenshot.png)
 
