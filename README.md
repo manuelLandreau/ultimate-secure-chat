@@ -67,7 +67,7 @@ You can try the application without installation by visiting the [live demo](htt
 
 ### Prerequisites
 
-- Node.js 16+ and npm
+- Node.js 18+ and npm
 
 ### Installation
 
