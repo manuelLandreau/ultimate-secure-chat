@@ -10,7 +10,7 @@ A secure, decentralized, end-to-end encrypted chat application that respects you
 ![Application Screenshot](./screenshot.png)
 
 > **Note**: This application was created for educational purposes to demonstrate secure communication principles and cryptographic implementations in web applications.
->
+
 > **Try it now**: Access the [live demo](https://ultimate-secure-chat.vercel.app) to see the application in action!
 
 ## Features
@@ -113,3 +113,48 @@ npm run build
 ## License
 
 This project is distributed under the MIT License. See the `LICENSE` file for more information.
+
+## Tests
+
+Ce projet comprend des tests unitaires et des tests fonctionnels (end-to-end) :
+
+### Tests Unitaires
+
+Les tests unitaires sont écrits avec Vitest et la bibliothèque Testing Library.
+
+```bash
+# Exécuter tous les tests unitaires
+npm test
+
+# Exécuter les tests en mode watch (pour le développement)
+npm run test:watch
+
+# Exécuter les tests avec l'interface utilisateur
+npm run test:ui
+
+# Exécuter les tests avec couverture
+npm run test:coverage
+```
+
+### Tests End-to-End
+
+Les tests fonctionnels sont écrits avec Cypress.
+
+```bash
+# Ouvrir l'interface graphique de Cypress
+npm run cypress:open
+
+# Exécuter les tests en mode headless
+npm run cypress:run
+```
+
+## Intégration Continue
+
+Ce projet utilise GitHub Actions pour l'intégration continue. À chaque push et pull request sur la branche `main`, les tests unitaires et fonctionnels sont automatiquement exécutés.
+
+Le workflow CI effectue les opérations suivantes :
+1. Exécution des tests unitaires
+2. Compilation du projet
+3. Exécution des tests end-to-end avec Cypress
+
+Vous pouvez voir les derniers résultats des tests dans l'onglet "Actions" du dépôt GitHub.
