@@ -2,16 +2,16 @@
 
 A secure, decentralized, end-to-end encrypted chat application that respects your privacy.
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manuelLandreau/utimate-secure-chat)
-[![Live Demo](https://img.shields.io/badge/Live-Demo-green?logo=web)](https://utimate-secure-chat.vercel.app)
-[![Build and Deploy](https://github.com/manuelLandreau/utimate-secure-chat/actions/workflows/deploy.yml/badge.svg)](https://github.com/manuelLandreau/utimate-secure-chat/actions/workflows/deploy.yml)
-[![Test and Validate](https://github.com/manuelLandreau/utimate-secure-chat/actions/workflows/test.yml/badge.svg)](https://github.com/manuelLandreau/utimate-secure-chat/actions/workflows/test.yml)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/manuelLandreau/ultimate-secure-chat)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-green?logo=web)](https://ultimate-secure-chat.vercel.app)
+[![Build and Deploy](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/deploy.yml/badge.svg)](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/deploy.yml)
+[![Test and Validate](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/test.yml/badge.svg)](https://github.com/manuelLandreau/ultimate-secure-chat/actions/workflows/test.yml)
 
 ![Application Screenshot](./screenshot.png)
 
 > **Note**: This application was created for educational purposes to demonstrate secure communication principles and cryptographic implementations in web applications.
 >
-> **Try it now**: Access the [live demo](https://utimate-secure-chat.vercel.app) to see the application in action!
+> **Try it now**: Access the [live demo](https://ultimate-secure-chat.vercel.app) to see the application in action!
 
 ## Features
 
@@ -63,7 +63,7 @@ Peer-to-peer communication is established using WebRTC via PeerJS:
 
 ### Live Demo
 
-You can try the application without installation by visiting the [live demo](https://utimate-secure-chat.vercel.app).
+You can try the application without installation by visiting the [live demo](https://ultimate-secure-chat.vercel.app).
 
 ### Prerequisites
 
@@ -73,8 +73,8 @@ You can try the application without installation by visiting the [live demo](htt
 
 ```bash
 # Clone the repository
-git clone https://github.com/manuelLandreau/utimate-secure-chat.git
-cd utimate-secure-chat
+git clone https://github.com/manuelLandreau/ultimate-secure-chat.git
+cd ultimate-secure-chat
 
 # Install dependencies
 npm install

@@ -287,7 +287,7 @@ const Chat: React.FC = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => window.open('https://github.com/manuelLandreau/utimate-secure-chat', '_blank')}
+            onClick={() => window.open('https://github.com/manuelLandreau/ultimate-secure-chat', '_blank')}
             aria-label="GitHub"
           >
             <GithubIcon size={20} />
