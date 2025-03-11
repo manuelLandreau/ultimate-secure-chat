@@ -5,7 +5,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/manuelLandreau/ultimate-secure-chat"
+    "url": "git@github.com:manuelLandreau/ultimate-secure-chat.git"
   },
   "scripts": {
     "dev": "vite",
