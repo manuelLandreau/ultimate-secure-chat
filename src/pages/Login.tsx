@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useP2PChat } from '../hooks/useP2PChat';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { SunIcon, MoonIcon, LockIcon, MessageSquareIcon, GithubIcon } from 'lucide-react';
+import { SunIcon, MoonIcon, LockIcon, MessageSquareIcon, GithubIcon, WifiIcon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
 /**
@@ -81,6 +81,17 @@ const Login: React.FC = () => {
           >
             {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
           </Button>
+          {isInitialized && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/connect')}
+              aria-label="Direct Connect"
+              title="Direct P2P Connection"
+            >
+              <WifiIcon size={20} />
+            </Button>
+          )}
         </div>
       
       <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-sm">

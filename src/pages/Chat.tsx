@@ -17,7 +17,8 @@ import {
   LogOutIcon,
   CopyIcon,
   MessageSquareIcon,
-  GithubIcon
+  GithubIcon,
+  WifiIcon
 } from 'lucide-react';
 import { Message } from '../stores/chatStore';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -299,6 +300,15 @@ const Chat: React.FC = () => {
             aria-label="Toggle theme"
           >
             {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/connect')}
+            aria-label="Direct Connect"
+            title="Direct Connect"
+          >
+            <WifiIcon size={20} />
           </Button>
         </div>
       </header>
