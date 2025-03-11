@@ -53,7 +53,7 @@ const matchMediaMock = () => ({
 
 // Setup global mocks
 beforeAll(() => {
-  // Mock WebRTC
+  // Mock WebRTC with proper typing
   global.RTCPeerConnection = vi.fn(() => ({
     createOffer: vi.fn(),
     createAnswer: vi.fn(),
@@ -63,7 +63,7 @@ beforeAll(() => {
     close: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
-  })) as any;
+  })) as unknown as typeof RTCPeerConnection;
 
   // Mock window.crypto
   Object.defineProperty(window, 'crypto', {

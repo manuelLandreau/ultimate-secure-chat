@@ -8,6 +8,9 @@ import {
   importPublicKey
 } from './crypto';
 
+// Types spécifiques pour éviter les any
+type CryptoAlgorithm = RsaOaepParams | AesGcmParams;
+
 describe('Crypto Service', () => {
   let mockKeyPair: CryptoKeyPair;
   let mockAESKey: CryptoKey;
@@ -27,7 +30,7 @@ describe('Crypto Service', () => {
     
     // Use vi.fn() instead of mockImplementation to avoid type issues
     const generateKeyMock = vi.fn();
-    generateKeyMock.mockImplementation((algorithm: any) => {
+    generateKeyMock.mockImplementation((algorithm: CryptoAlgorithm) => {
       if (algorithm && algorithm.name === 'RSA-OAEP') {
         return Promise.resolve(mockKeyPair);
       } else if (algorithm && algorithm.name === 'AES-GCM') {
@@ -37,7 +40,7 @@ describe('Crypto Service', () => {
     });
     
     const importKeyMock = vi.fn();
-    importKeyMock.mockImplementation((_format: any, _keyData: any, algorithm: any) => {
+    importKeyMock.mockImplementation((_format: KeyFormat, _keyData: ArrayBuffer | JsonWebKey, algorithm: CryptoAlgorithm) => {
       if (algorithm && algorithm.name === 'RSA-OAEP') {
         return Promise.resolve({} as CryptoKey);
       } else if (algorithm && algorithm.name === 'AES-GCM') {
@@ -52,7 +55,7 @@ describe('Crypto Service', () => {
     vi.spyOn(window.crypto.subtle, 'exportKey').mockResolvedValue(mockExportedKey);
     vi.spyOn(window.crypto.subtle, 'importKey').mockImplementation(importKeyMock);
     
-    vi.spyOn(window.crypto, 'getRandomValues').mockImplementation((array: any) => {
+    vi.spyOn(window.crypto, 'getRandomValues').mockImplementation((array: ArrayBufferView | null) => {
       if (array instanceof Uint8Array) {
         array.set(new Uint8Array(array.length).fill(1));
       }

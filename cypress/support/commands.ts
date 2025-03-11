@@ -8,6 +8,8 @@
 // https://on.cypress.io/custom-commands
 // ***********************************************
 
+/* eslint-disable @typescript-eslint/no-namespace */
+
 // Déclaration des types pour TypeScript
 declare global {
   namespace Cypress {
