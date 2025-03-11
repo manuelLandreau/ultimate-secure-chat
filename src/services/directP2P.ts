@@ -68,7 +68,6 @@ export class DirectP2PService {
   private dataChannels: Map<string, RTCDataChannel> = new Map();
   private userId: string = '';
   private callbacks: MessageCallbacks;
-  private keyPair: KeyPair | null = null;
   private peerPublicKeys: Map<string, CryptoKey> = new Map();
   private iceServers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -79,6 +78,7 @@ export class DirectP2PService {
   private pendingCandidates: Map<string, RTCIceCandidate[]> = new Map();
   private initialized: boolean = false;
   private dhKeyPair: CryptoKeyPair | null = null;
+  private _keyPair: KeyPair | null = null;
   private sharedSecrets: Map<string, CryptoKey> = new Map();
 
   constructor(callbacks: MessageCallbacks) {
@@ -90,8 +90,10 @@ export class DirectP2PService {
    */
   async initialize(keyPair: KeyPair): Promise<string> {
     try {
-      this.keyPair = keyPair;
-      
+      this._keyPair = keyPair;
+
+      if (this._keyPair) console.log('Key pair initialized');
+
       // Generate a Diffie-Hellman key pair for secure communications
       this.dhKeyPair = await generateDHKeyPair();
       

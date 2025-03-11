@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useP2PChat } from '../hooks/useP2PChat';
+import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Avatar } from '../components/ui/Avatar';
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Message } from '../stores/chatStore';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { Textarea } from '../components/ui/Textarea';
 
 /**
  * Main chat page
@@ -32,7 +34,6 @@ const Chat: React.FC = () => {
   
   // Local states
   const [message, setMessage] = useState('');
-  const [peerIdInput, setPeerIdInput] = useState('');
   const [showContactForm, setShowContactForm] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -46,11 +47,24 @@ const Chat: React.FC = () => {
     conversations,
     activeContactId,
     setActiveContact,
-    connectToContact,
     sendTextMessage,
     sendFile,
     myPeerId,
   } = useP2PChat();
+  
+  // Direct P2P hook access
+  const {
+    connectToContact: directConnectToContact,
+    handleContactOffer,
+    handleContactAnswer,
+  } = useDirectP2PChat();
+  
+  // Ajout des nouveaux états pour la connexion directe
+  const [ipAddress, setIpAddress] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [offerData, setOfferData] = useState('');
+  const [answerData, setAnswerData] = useState('');
+  const [connectionMode, setConnectionMode] = useState<'create' | 'join'>('create');
   
   // Redirect to login page if not connected
   useEffect(() => {
@@ -77,37 +91,6 @@ const Chat: React.FC = () => {
   const copyPeerId = () => {
     if (myPeerId) {
       navigator.clipboard.writeText(myPeerId);
-    }
-  };
-  
-  // Connect to a new contact
-  const handleConnectToPeer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!peerIdInput.trim()) {
-      setError('Please enter a valid ID');
-      return;
-    }
-    
-    setIsConnecting(true);
-    setError(null);
-    
-    try {
-      const success = await connectToContact(peerIdInput);
-      
-      if (success) {
-        setPeerIdInput('');
-        setShowContactForm(false);
-        // Select the new contact
-        setActiveContact(peerIdInput);
-      } else {
-        setError('Unable to connect to this peer.');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
-      console.error(err);
-    } finally {
-      setIsConnecting(false);
     }
   };
   
@@ -265,6 +248,102 @@ const Chat: React.FC = () => {
     return null;
   };
   
+  // Créer une offre de connexion
+  const handleCreateOffer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!ipAddress.trim()) {
+      setError('Please enter a valid IP address');
+      return;
+    }
+    
+    setIsConnecting(true);
+    setError(null);
+    
+    try {
+      // Connect to the peer
+      await directConnectToContact(ipAddress, contactName || undefined);
+      
+      // In a real application, this would be where you get the offer data
+      // Currently, the offer is logged to console
+      
+      // Clean up and close the form on success
+      setIpAddress('');
+      setContactName('');
+      setShowContactForm(false);
+      
+      // Set a success message
+      setShowMobileMenu(false);
+    } catch (err) {
+      setError('Error creating connection. Please try again.');
+      console.error(err);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+  
+  // Traiter une offre reçue
+  const handleProcessOffer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!ipAddress.trim() || !offerData.trim()) {
+      setError('Please enter both IP address and offer data');
+      return;
+    }
+    
+    setIsConnecting(true);
+    setError(null);
+    
+    try {
+      // Parse the offer data
+      const offerObject = JSON.parse(offerData);
+      
+      // Handle the offer and generate an answer
+      const answer = await handleContactOffer(ipAddress, offerObject, contactName || undefined);
+      
+      // Display the answer to be shared
+      setAnswerData(JSON.stringify(answer));
+    } catch (err) {
+      setError('Error processing offer. Please check the format and try again.');
+      console.error(err);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+  
+  // Traiter une réponse reçue
+  const handleProcessAnswer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!ipAddress.trim() || !answerData.trim()) {
+      setError('Please enter both IP address and answer data');
+      return;
+    }
+    
+    setIsConnecting(true);
+    setError(null);
+    
+    try {
+      // Parse the answer data
+      const answerObject = JSON.parse(answerData);
+      
+      // Process the answer
+      await handleContactAnswer(ipAddress, answerObject);
+      
+      // Clean up and close the form on success
+      setIpAddress('');
+      setOfferData('');
+      setAnswerData('');
+      setShowContactForm(false);
+      setShowMobileMenu(false);
+    } catch (err) {
+      setError('Error processing answer. Please check the format and try again.');
+      console.error(err);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+  
   // If user is not connected, display a message
   if (!userProfile) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -354,23 +433,118 @@ const Chat: React.FC = () => {
           {/* Form to add a contact */}
           {showContactForm && (
             <div className="border-b border-border p-4">
-              <form onSubmit={handleConnectToPeer} className="space-y-3">
-                <Input
-                  placeholder="Contact ID"
-                  value={peerIdInput}
-                  onChange={(e) => setPeerIdInput(e.target.value)}
-                  fullWidth
-                  disabled={isConnecting}
-                  error={error || undefined}
-                />
+              <div className="mb-4 grid grid-cols-2 gap-2">
                 <Button 
-                  type="submit" 
-                  className="w-full" 
-                  isLoading={isConnecting}
+                  onClick={() => setConnectionMode('create')} 
+                  variant={connectionMode === 'create' ? 'default' : 'outline'}
+                  size="sm"
                 >
-                  Add
+                  Create Connection
                 </Button>
-              </form>
+                <Button 
+                  onClick={() => setConnectionMode('join')} 
+                  variant={connectionMode === 'join' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  Join Connection
+                </Button>
+              </div>
+              
+              {error && (
+                <div className="mb-4 rounded-md bg-red-100 p-3 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs">
+                  {error}
+                </div>
+              )}
+              
+              {connectionMode === 'create' && (
+                <form onSubmit={handleCreateOffer} className="space-y-3">
+                  <Input
+                    placeholder="Peer IP Address"
+                    value={ipAddress}
+                    onChange={(e) => setIpAddress(e.target.value)}
+                    fullWidth
+                    disabled={isConnecting}
+                  />
+                  <Input
+                    placeholder="Contact Name (Optional)"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    fullWidth
+                    disabled={isConnecting}
+                  />
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    isLoading={isConnecting}
+                  >
+                    Create Connection
+                  </Button>
+                </form>
+              )}
+              
+              {connectionMode === 'join' && (
+                <div className="space-y-3">
+                  <form onSubmit={handleProcessOffer} className="space-y-3">
+                    <Input
+                      placeholder="Peer IP Address"
+                      value={ipAddress}
+                      onChange={(e) => setIpAddress(e.target.value)}
+                      fullWidth
+                      disabled={isConnecting}
+                    />
+                    <Input
+                      placeholder="Contact Name (Optional)"
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      fullWidth
+                      disabled={isConnecting}
+                    />
+                    <Textarea
+                      value={offerData}
+                      onChange={(e) => setOfferData(e.target.value)}
+                      placeholder="Paste offer data here"
+                      rows={3}
+                      className="font-mono text-xs"
+                    />
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      isLoading={isConnecting}
+                    >
+                      Process Offer
+                    </Button>
+                  </form>
+                  
+                  {answerData && (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-medium">Share this answer:</label>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(answerData)}
+                          className="text-primary"
+                        >
+                          <CopyIcon size={14} />
+                        </button>
+                      </div>
+                      <Textarea
+                        value={answerData}
+                        readOnly
+                        rows={3}
+                        className="font-mono text-xs"
+                      />
+                      <form onSubmit={handleProcessAnswer} className="mt-2">
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          isLoading={isConnecting}
+                        >
+                          Complete Connection
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           
