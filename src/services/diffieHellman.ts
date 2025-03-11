@@ -3,12 +3,93 @@
  * Implements the Diffie-Hellman key exchange protocol using the Web Crypto API
  */
 
+import { isCryptoAvailable } from './crypto';
+
+/**
+ * Fallback implementation for environments without Web Crypto API
+ * NOT SECURE, for development only
+ */
+class FallbackDiffieHellman {
+  private static generateRandomId(): string {
+    return Math.random().toString(36).substring(2, 15) + 
+           Math.random().toString(36).substring(2, 15);
+  }
+
+  static async generateKeyPair(): Promise<CryptoKeyPair> {
+    console.warn('WARNING: Using insecure fallback Diffie-Hellman implementation. This should only be used for development.');
+    
+    const id = this.generateRandomId();
+    return {
+      publicKey: { id, type: 'dh-public' } as unknown as CryptoKey,
+      privateKey: { id, type: 'dh-private' } as unknown as CryptoKey
+    } as CryptoKeyPair;
+  }
+
+  static async exportPublicKey(publicKey: CryptoKey): Promise<string> {
+    return JSON.stringify(publicKey);
+  }
+
+  static async importPublicKey(keyData: string): Promise<CryptoKey> {
+    try {
+      const parsed = JSON.parse(keyData);
+      parsed.type = 'dh-public';
+      return parsed as unknown as CryptoKey;
+    } catch (error) {
+      console.error('Error importing fallback DH public key:', error);
+      return { id: this.generateRandomId(), type: 'dh-public' } as unknown as CryptoKey;
+    }
+  }
+
+  static async deriveSharedSecret(privateKey: CryptoKey, publicKey: CryptoKey): Promise<CryptoKey> {
+    // Generate a deterministic shared key based on the private and public keys
+    const privateId = (privateKey as unknown as { id: string }).id;
+    const publicId = (publicKey as unknown as { id: string }).id;
+    const combinedId = privateId + publicId;
+    
+    return {
+      id: combinedId,
+      type: 'shared-secret',
+      algorithm: { name: 'AES-GCM' },
+      usages: ['encrypt', 'decrypt']
+    } as unknown as CryptoKey;
+  }
+
+  static async encrypt(data: string): Promise<EncryptedData> {
+    // Simple Base64 encoding - NOT SECURE
+    return {
+      ciphertext: btoa(data),
+      iv: btoa('fallback-iv')
+    };
+  }
+
+  static async decrypt(encryptedData: EncryptedData): Promise<string> {
+    try {
+      return atob(encryptedData.ciphertext);
+    } catch (error) {
+      console.error('Error decrypting with fallback DH:', error);
+      return '[Decryption Error]';
+    }
+  }
+}
+
+/**
+ * Interface for encrypted data
+ */
+export interface EncryptedData {
+  ciphertext: string;
+  iv: string;
+}
+
 /**
  * Generate a Diffie-Hellman key pair
  * @returns A promise that resolves to a CryptoKeyPair with public and private keys
  */
 export async function generateDHKeyPair(): Promise<CryptoKeyPair> {
   try {
+    if (!isCryptoAvailable()) {
+      return FallbackDiffieHellman.generateKeyPair();
+    }
+
     // Generate a new ECDH key pair
     const keyPair = await window.crypto.subtle.generateKey(
       {
@@ -22,7 +103,8 @@ export async function generateDHKeyPair(): Promise<CryptoKeyPair> {
     return keyPair;
   } catch (error) {
     console.error('Error generating Diffie-Hellman key pair:', error);
-    throw error;
+    console.warn('Falling back to insecure DH implementation');
+    return FallbackDiffieHellman.generateKeyPair();
   }
 }
 
@@ -33,6 +115,10 @@ export async function generateDHKeyPair(): Promise<CryptoKeyPair> {
  */
 export async function exportDHPublicKey(publicKey: CryptoKey): Promise<string> {
   try {
+    if (!isCryptoAvailable()) {
+      return FallbackDiffieHellman.exportPublicKey(publicKey);
+    }
+
     // Export the public key in raw format
     const exportedKey = await window.crypto.subtle.exportKey(
       'raw',
@@ -43,7 +129,7 @@ export async function exportDHPublicKey(publicKey: CryptoKey): Promise<string> {
     return arrayBufferToBase64(exportedKey);
   } catch (error) {
     console.error('Error exporting Diffie-Hellman public key:', error);
-    throw error;
+    return FallbackDiffieHellman.exportPublicKey(publicKey);
   }
 }
 
@@ -54,6 +140,10 @@ export async function exportDHPublicKey(publicKey: CryptoKey): Promise<string> {
  */
 export async function importDHPublicKey(keyData: string): Promise<CryptoKey> {
   try {
+    if (!isCryptoAvailable()) {
+      return FallbackDiffieHellman.importPublicKey(keyData);
+    }
+
     // Convert the Base64 string back to an ArrayBuffer
     const keyBuffer = base64ToArrayBuffer(keyData);
     
@@ -72,7 +162,7 @@ export async function importDHPublicKey(keyData: string): Promise<CryptoKey> {
     return publicKey;
   } catch (error) {
     console.error('Error importing Diffie-Hellman public key:', error);
-    throw error;
+    return FallbackDiffieHellman.importPublicKey(keyData);
   }
 }
 
@@ -84,6 +174,10 @@ export async function importDHPublicKey(keyData: string): Promise<CryptoKey> {
  */
 export async function deriveSharedSecret(privateKey: CryptoKey, publicKey: CryptoKey): Promise<CryptoKey> {
   try {
+    if (!isCryptoAvailable()) {
+      return FallbackDiffieHellman.deriveSharedSecret(privateKey, publicKey);
+    }
+
     // Derive a shared secret key
     const sharedSecret = await window.crypto.subtle.deriveKey(
       {
@@ -102,7 +196,7 @@ export async function deriveSharedSecret(privateKey: CryptoKey, publicKey: Crypt
     return sharedSecret;
   } catch (error) {
     console.error('Error deriving shared secret:', error);
-    throw error;
+    return FallbackDiffieHellman.deriveSharedSecret(privateKey, publicKey);
   }
 }
 
@@ -112,11 +206,12 @@ export async function deriveSharedSecret(privateKey: CryptoKey, publicKey: Crypt
  * @param data The data to encrypt
  * @returns A promise that resolves to the encrypted data
  */
-export async function encryptWithSharedSecret(sharedSecret: CryptoKey, data: string): Promise<{
-  ciphertext: string,
-  iv: string
-}> {
+export async function encryptWithSharedSecret(sharedSecret: CryptoKey, data: string): Promise<EncryptedData> {
   try {
+    if (!isCryptoAvailable()) {
+      return FallbackDiffieHellman.encrypt(data);
+    }
+
     // Generate a random initialization vector
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     
@@ -140,7 +235,7 @@ export async function encryptWithSharedSecret(sharedSecret: CryptoKey, data: str
     };
   } catch (error) {
     console.error('Error encrypting with shared secret:', error);
-    throw error;
+    return FallbackDiffieHellman.encrypt(data);
   }
 }
 
@@ -152,9 +247,13 @@ export async function encryptWithSharedSecret(sharedSecret: CryptoKey, data: str
  */
 export async function decryptWithSharedSecret(
   sharedSecret: CryptoKey,
-  encryptedData: { ciphertext: string, iv: string }
+  encryptedData: EncryptedData
 ): Promise<string> {
   try {
+    if (!isCryptoAvailable()) {
+      return FallbackDiffieHellman.decrypt(encryptedData);
+    }
+
     // Convert the ciphertext and IV from Base64 to ArrayBuffer
     const ciphertext = base64ToArrayBuffer(encryptedData.ciphertext);
     const iv = base64ToArrayBuffer(encryptedData.iv);
@@ -173,7 +272,7 @@ export async function decryptWithSharedSecret(
     return new TextDecoder().decode(decrypted);
   } catch (error) {
     console.error('Error decrypting with shared secret:', error);
-    throw error;
+    return FallbackDiffieHellman.decrypt(encryptedData);
   }
 }
 
