@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useP2PChat } from '../hooks/useP2PChat';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { SunIcon, MoonIcon, LockIcon, MessageSquareIcon } from 'lucide-react';
+import { SunIcon, MoonIcon, LockIcon, MessageSquareIcon, GithubIcon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
 /**
@@ -64,15 +64,24 @@ const Login: React.FC = () => {
   
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleTheme}
-        className="absolute right-4 top-4"
-        aria-label="Toggle theme"
-      >
-        {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-      </Button>
+      <div className="absolute right-4 top-3 flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => window.open('https://github.com/manuelLandreau/ultimate-secure-chat', '_blank')}
+            aria-label="GitHub"
+          >
+            <GithubIcon size={20} />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
+            {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+          </Button>
+        </div>
       
       <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-center">

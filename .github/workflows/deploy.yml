@@ -34,9 +34,27 @@ jobs:
 
     - name: Install dependencies
       run: npm ci
+      
+    - name: Cache Cypress binary
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/Cypress
+        key: cypress-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          cypress-${{ runner.os }}-
     
     - name: Run lint
       run: npm run lint
+    
+    - name: Run unit tests with coverage
+      run: npm run test:coverage
+    
+    - name: Cypress e2e tests
+      uses: cypress-io/github-action@v6
+      with:
+        build: npm run build
+        start: npm run preview
+        wait-on: 'http://localhost:4173'
     
     - name: Build project
       run: npm run build

@@ -37,7 +37,7 @@ describe('Crypto Service', () => {
     });
     
     const importKeyMock = vi.fn();
-    importKeyMock.mockImplementation((format: any, keyData: any, algorithm: any) => {
+    importKeyMock.mockImplementation((_format: any, _keyData: any, algorithm: any) => {
       if (algorithm && algorithm.name === 'RSA-OAEP') {
         return Promise.resolve({} as CryptoKey);
       } else if (algorithm && algorithm.name === 'AES-GCM') {
