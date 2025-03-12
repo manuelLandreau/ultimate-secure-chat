@@ -52,13 +52,13 @@ No private key ever leaves the user's device. Messages can only be read by the s
 
 ### P2P Communication
 
-La communication pair-à-pair est établie en utilisant des connexions WebRTC directes:
+La communication pair-à-pair est établie en utilisant des connexions WebRTC directes sans serveurs de signalisation ni serveurs ICE:
 
 1. Chaque utilisateur génère un identifiant unique lors de la connexion.
 2. L'utilisateur peut partager son adresse IP avec d'autres pour établir une connexion directe.
 3. L'échange d'offres et de réponses WebRTC se fait manuellement pour établir la connexion.
 4. Les données échangées via le canal de données WebRTC sont déjà chiffrées par le chiffrement de bout en bout.
-5. Aucun serveur de signalisation n'est utilisé, ce qui garantit une confidentialité maximale.
+5. Aucun serveur tiers n'est utilisé (ni serveur de signalisation, ni serveur STUN/TURN), garantissant une confidentialité maximale et une décentralisation complète.
 
 ## Installation and Execution
 
@@ -100,6 +100,7 @@ npm run build
 
 ## Security
 
+- **Décentralisation complète**: Aucun serveur central, de signalisation ou ICE (STUN/TURN) n'est utilisé.
 - **No Central Server**: No server that could be compromised.
 - **Local Encryption**: All cryptographic operations are performed locally.
 - **Locally Generated Keys**: Keys never leave your device.
@@ -110,6 +111,10 @@ npm run build
 - **Availability**: Both users must be online at the same time to exchange messages.
 - **Message Durability**: Messages are only stored locally and may be lost if local storage is cleared.
 - **Browser Compatibility**: Requires a modern browser supporting WebRTC and Web Crypto APIs.
+- **Connectivité directe nécessaire**: En raison de l'absence de serveurs ICE (STUN/TURN), les connexions ne peuvent être établies que:
+  * Entre utilisateurs sur le même réseau local
+  * Lorsqu'au moins un des utilisateurs a une adresse IP publique directement accessible
+  * Quand les routeurs/pare-feu permettent d'établir des connexions entrantes
 
 ## License
 

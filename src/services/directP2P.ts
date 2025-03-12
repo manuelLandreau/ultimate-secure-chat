@@ -1,10 +1,9 @@
 /**
  * Service for direct peer-to-peer communication with WebRTC
- * Uses direct WebRTC connections without PeerJS
+ * Uses direct WebRTC connections without any external servers
  */
 
 import { nanoid } from 'nanoid';
-import { KeyPair } from './crypto';
 import { 
   generateDHKeyPair, 
   exportDHPublicKey, 
@@ -61,25 +60,28 @@ interface MessageCallbacks {
 }
 
 /**
- * Class for managing direct WebRTC connections and Diffie-Hellman key exchange
+ * Configuration pour créer une connexion sans utiliser ICE
+ */
+const peerConnectionConfig = {
+  iceServers: [] // Aucun serveur ICE
+};
+
+/**
+ * Class for managing direct WebRTC connections with Diffie-Hellman key exchange
+ * Completely decentralized, uses no external servers of any kind
  */
 export class DirectP2PService {
   private connections: Map<string, RTCPeerConnection> = new Map();
   private dataChannels: Map<string, RTCDataChannel> = new Map();
   private userId: string = '';
   private callbacks: MessageCallbacks;
-  private peerPublicKeys: Map<string, CryptoKey> = new Map();
-  private iceServers: RTCIceServer[] = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ];
-  private pendingOffers: Map<string, RTCSessionDescriptionInit> = new Map();
-  private pendingCandidates: Map<string, RTCIceCandidate[]> = new Map();
   private initialized: boolean = false;
   private dhKeyPair: CryptoKeyPair | null = null;
-  private _keyPair: KeyPair | null = null;
   private sharedSecrets: Map<string, CryptoKey> = new Map();
+  
+  // Stockage des descriptions de session pour l'établissement de connexion
+  private pendingOffers: Map<string, RTCSessionDescriptionInit> = new Map();
+  private connectionState: Map<string, string> = new Map();
 
   constructor(callbacks: MessageCallbacks) {
     this.callbacks = callbacks;
@@ -88,16 +90,14 @@ export class DirectP2PService {
   /**
    * Initialize the Direct P2P service
    */
-  async initialize(keyPair: KeyPair): Promise<string> {
+  async initialize(): Promise<string> {
     try {
-      this._keyPair = keyPair;
-
-      if (this._keyPair) console.log('Key pair initialized');
+      console.log('Initializing Direct P2P service');
 
       // Generate a Diffie-Hellman key pair for secure communications
       this.dhKeyPair = await generateDHKeyPair();
       
-      // Generate a random ID for this user (could be replaced with a more permanent ID)
+      // Generate a random ID for this user
       this.userId = nanoid(10);
       this.initialized = true;
       
@@ -112,7 +112,7 @@ export class DirectP2PService {
 
   /**
    * Start connection process to a peer
-   * @param ipAddress The IP address of the peer to connect to
+   * @param ipAddress The IP address or identifier of the peer to connect to
    */
   async connectToPeer(ipAddress: string): Promise<void> {
     if (!this.initialized) {
@@ -120,8 +120,10 @@ export class DirectP2PService {
     }
 
     try {
-      // Create a new RTCPeerConnection
-      const peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+      console.log(`Starting connection to peer at ${ipAddress}...`);
+      
+      // Create a new RTCPeerConnection with explicitly empty ICE servers
+      const peerConnection = new RTCPeerConnection(peerConnectionConfig);
       
       // Create a data channel for this connection
       const dataChannel = peerConnection.createDataChannel('messenger', {
@@ -134,9 +136,10 @@ export class DirectP2PService {
       // Store connection and data channel
       this.connections.set(ipAddress, peerConnection);
       this.dataChannels.set(ipAddress, dataChannel);
+      this.connectionState.set(ipAddress, 'connecting');
       
-      // Set up ICE candidate handling
-      this.setupICEHandling(peerConnection, ipAddress);
+      // Set up connection state monitoring
+      this.setupConnectionStateMonitoring(peerConnection, ipAddress);
       
       // Create and send offer
       const offer = await peerConnection.createOffer();
@@ -147,14 +150,8 @@ export class DirectP2PService {
       
       console.log(`Connection offer created for peer at ${ipAddress}`);
       
-      // In a real implementation, we would now need to transfer this offer to the peer
-      // over a signaling channel. For now, we'll just log it.
-      console.log(`Offer needs to be sent to peer at ${ipAddress}: `, JSON.stringify(offer));
-      
-      // Note: In a real implementation, you would need to:
-      // 1. Send this offer to the peer via some out-of-band signaling method (e.g., scanning QR code, sharing link)
-      // 2. Receive the answer from the peer
-      // 3. Call handlePeerAnswer with the received answer
+      // L'offre doit être transmise manuellement au destinataire par un canal externe
+      // (copier-coller, QR code, etc.)
       
     } catch (error) {
       console.error('Error connecting to peer:', error);
@@ -174,15 +171,13 @@ export class DirectP2PService {
     }
     
     try {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-      console.log(`Established connection with peer at ${ipAddress}`);
+      console.log(`Processing answer from peer at ${ipAddress}`);
       
-      // Process any pending ICE candidates
-      const pendingCandidates = this.pendingCandidates.get(ipAddress) || [];
-      for (const candidate of pendingCandidates) {
-        await peerConnection.addIceCandidate(candidate);
-      }
-      this.pendingCandidates.delete(ipAddress);
+      // Set the remote description (the answer from the other peer)
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+      
+      console.log(`Connection established with peer at ${ipAddress}`);
+      this.connectionState.set(ipAddress, 'connected');
       
     } catch (error) {
       console.error('Error handling peer answer:', error);
@@ -195,28 +190,34 @@ export class DirectP2PService {
    */
   async handlePeerOffer(ipAddress: string, offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
     try {
-      // Create a new RTCPeerConnection for this offer
-      const peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+      console.log(`Received offer from peer at ${ipAddress}`);
+      
+      // Create a new RTCPeerConnection with explicitly empty ICE servers
+      const peerConnection = new RTCPeerConnection(peerConnectionConfig);
       
       // Set up event handlers for incoming data channels
       peerConnection.ondatachannel = (event) => {
         const dataChannel = event.channel;
+        console.log(`Received data channel from ${ipAddress}`);
         this.setupDataChannelEvents(dataChannel, ipAddress);
         this.dataChannels.set(ipAddress, dataChannel);
       };
       
-      // Set up ICE candidate handling
-      this.setupICEHandling(peerConnection, ipAddress);
+      // Setup connection state monitoring
+      this.setupConnectionStateMonitoring(peerConnection, ipAddress);
       
       // Store the connection
       this.connections.set(ipAddress, peerConnection);
+      this.connectionState.set(ipAddress, 'connecting');
       
       // Process the offer
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       
-      // Create and send answer
+      // Create an answer
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
+      
+      console.log(`Created answer for peer at ${ipAddress}`);
       
       return answer;
       
@@ -228,48 +229,35 @@ export class DirectP2PService {
   }
 
   /**
-   * Add ICE candidate from remote peer
+   * Monitor connection state changes
    */
-  async addIceCandidate(ipAddress: string, candidate: RTCIceCandidate): Promise<void> {
-    const peerConnection = this.connections.get(ipAddress);
-    
-    if (!peerConnection) {
-      // Store candidate for later processing
-      const candidates = this.pendingCandidates.get(ipAddress) || [];
-      candidates.push(candidate);
-      this.pendingCandidates.set(ipAddress, candidates);
-      return;
-    }
-    
-    try {
-      await peerConnection.addIceCandidate(candidate);
-    } catch (error) {
-      console.error('Error adding ICE candidate:', error);
-      this.callbacks.onError(error as Error);
-    }
-  }
-
-  /**
-   * Set up ICE candidate handling for a peer connection
-   */
-  private setupICEHandling(peerConnection: RTCPeerConnection, ipAddress: string): void {
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        // In a real implementation, you would need to send this candidate to the peer
-        console.log(`ICE candidate for ${ipAddress}:`, JSON.stringify(event.candidate));
+  private setupConnectionStateMonitoring(peerConnection: RTCPeerConnection, peerId: string): void {
+    // Listen for connection state changes
+    peerConnection.onconnectionstatechange = () => {
+      console.log(`Connection state for ${peerId}:`, peerConnection.connectionState);
+      
+      switch (peerConnection.connectionState) {
+        case 'connected':
+          this.connectionState.set(peerId, 'connected');
+          this.callbacks.onConnection(peerId);
+          break;
+        case 'disconnected':
+        case 'failed':
+        case 'closed':
+          this.connectionState.set(peerId, 'disconnected');
+          this.callbacks.onDisconnection(peerId);
+          break;
       }
     };
     
-    peerConnection.oniceconnectionstatechange = () => {
-      console.log(`ICE connection state for ${ipAddress}:`, peerConnection.iceConnectionState);
-      
-      if (peerConnection.iceConnectionState === 'connected' || 
-          peerConnection.iceConnectionState === 'completed') {
-        this.callbacks.onConnection(ipAddress);
-      } else if (peerConnection.iceConnectionState === 'disconnected' || 
-                peerConnection.iceConnectionState === 'failed' || 
-                peerConnection.iceConnectionState === 'closed') {
-        this.callbacks.onDisconnection(ipAddress);
+    // Backup: also monitor signaling state
+    peerConnection.onsignalingstatechange = () => {
+      console.log(`Signaling state for ${peerId}:`, peerConnection.signalingState);
+      if (peerConnection.signalingState === 'stable') {
+        // La connexion a été établie avec succès
+        if (this.connectionState.get(peerId) === 'connecting') {
+          this.connectionState.set(peerId, 'connected');
+        }
       }
     };
   }
@@ -281,6 +269,7 @@ export class DirectP2PService {
     dataChannel.onopen = () => {
       console.log(`Data channel opened with ${peerId}`);
       this.callbacks.onConnection(peerId);
+      this.connectionState.set(peerId, 'connected');
       
       // Start Diffie-Hellman key exchange
       this.exchangeKeys(peerId);
@@ -289,6 +278,7 @@ export class DirectP2PService {
     dataChannel.onclose = () => {
       console.log(`Data channel closed with ${peerId}`);
       this.callbacks.onDisconnection(peerId);
+      this.connectionState.set(peerId, 'disconnected');
     };
     
     dataChannel.onerror = (error) => {
@@ -560,10 +550,9 @@ export class DirectP2PService {
     // Clear maps
     this.connections.clear();
     this.dataChannels.clear();
-    this.peerPublicKeys.clear();
     this.pendingOffers.clear();
-    this.pendingCandidates.clear();
     this.sharedSecrets.clear();
+    this.connectionState.clear();
     
     this.initialized = false;
   }

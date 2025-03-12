@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { DirectP2PService } from '../services/directP2P';
-import { generateKeyPair, importPrivateKey, importPublicKey, KeyPair } from '../services/crypto';
+import { generateKeyPair } from '../services/crypto';
 import useStore, { Message } from '../stores/chatStore';
 
 /**
- * Custom hook for direct P2P chat communication using WebRTC without PeerJS
+ * Custom hook for direct P2P chat communication using WebRTC
  */
 export const useDirectP2PChat = () => {
   // P2P service reference
@@ -48,7 +48,7 @@ export const useDirectP2PChat = () => {
         p2pServiceRef.current = null;
       }
       
-      // Generate key pair
+      // Generate key pair for user profile
       const keyPair = await generateKeyPair();
       
       // Initialize P2P service
@@ -67,7 +67,7 @@ export const useDirectP2PChat = () => {
       });
       
       // Connect to P2P network
-      const userId = await p2pService.initialize(keyPair);
+      const userId = await p2pService.initialize();
       
       // Save reference - ensure this happens AFTER the initialize call
       p2pServiceRef.current = p2pService;
@@ -85,46 +85,30 @@ export const useDirectP2PChat = () => {
         name: username
       };
       
-      // Register in store
+      // Update user profile in store
       setUserProfile(profile);
-      await updateUserKeys(keyPair);
       
-      setIsConnecting(false);
+      // Save encryption keys
+      updateUserKeys(keyPair);
+      
       return userId;
     } catch (error) {
-      console.error('Initialization error:', error);
+      console.error('Error initializing DirectP2P:', error);
       setConnectionError(error as Error);
-      setIsConnecting(false);
       throw error;
+    } finally {
+      setIsConnecting(false);
     }
   };
   
   /**
-   * Restore user keys from storage
+   * Try to reconnect with existing profile
    */
-  const restoreUserKeys = async (): Promise<KeyPair | null> => {
-    try {
-      if (!userProfile?.privateKeyJwk || !userProfile?.publicKeyJwk) {
-        return null;
-      }
-      
-      const privateKey = await importPrivateKey(userProfile.privateKeyJwk);
-      const publicKey = await importPublicKey(userProfile.publicKeyJwk);
-      
-      return { privateKey, publicKey };
-    } catch (error) {
-      console.error('Error restoring user keys:', error);
-      return null;
-    }
-  };
-  
-  /**
-   * Reconnect user (after app restart)
-   */
-  const reconnect = async () => {
+  const reconnect = async (): Promise<boolean> => {
     try {
       if (!userProfile) {
-        throw new Error('No user profile found');
+        console.log('No user profile found for reconnection');
+        return false;
       }
       
       setIsConnecting(true);
@@ -134,13 +118,6 @@ export const useDirectP2PChat = () => {
       if (p2pServiceRef.current) {
         p2pServiceRef.current.disconnect();
         p2pServiceRef.current = null;
-      }
-      
-      // Restore keys
-      const keyPair = await restoreUserKeys();
-      
-      if (!keyPair) {
-        throw new Error('Failed to restore encryption keys');
       }
       
       // Initialize P2P service
@@ -158,10 +135,10 @@ export const useDirectP2PChat = () => {
         }
       });
       
-      // Reconnect with the same ID
-      await p2pService.initialize(keyPair);
+      // Connect to P2P network with existing ID
+      await p2pService.initialize();
       
-      // Save reference - AFTER initialize
+      // Save reference
       p2pServiceRef.current = p2pService;
       
       // Verify the service is properly initialized
@@ -171,18 +148,13 @@ export const useDirectP2PChat = () => {
       
       console.log('DirectP2P service reconnection verified');
       
-      // Mark all contacts as initially disconnected
-      contacts.forEach(contact => {
-        updateContact(contact.id, { isConnected: false });
-      });
-      
-      setIsConnecting(false);
       return true;
     } catch (error) {
-      console.error('Reconnection error:', error);
+      console.error('Error reconnecting to DirectP2P:', error);
       setConnectionError(error as Error);
-      setIsConnecting(false);
       return false;
+    } finally {
+      setIsConnecting(false);
     }
   };
   
@@ -305,25 +277,6 @@ export const useDirectP2PChat = () => {
       return true;
     } catch (error) {
       console.error('Error handling contact answer:', error);
-      setConnectionError(error as Error);
-      return false;
-    }
-  };
-
-  /**
-   * Handle ICE candidate from a peer
-   */
-  const handleIceCandidate = async (ipAddress: string, candidate: RTCIceCandidate) => {
-    try {
-      if (!p2pServiceRef.current) {
-        throw new Error('Direct P2P service not initialized');
-      }
-      
-      // Add the ICE candidate
-      await p2pServiceRef.current.addIceCandidate(ipAddress, candidate);
-      return true;
-    } catch (error) {
-      console.error('Error handling ICE candidate:', error);
       setConnectionError(error as Error);
       return false;
     }
@@ -573,7 +526,6 @@ export const useDirectP2PChat = () => {
     connectToContact,
     handleContactOffer,
     handleContactAnswer,
-    handleIceCandidate,
     handleConnectionRequest,
     acceptConnection,
     rejectConnection,

@@ -1,45 +1,59 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DirectP2PService } from '../services/directP2P';
-import { KeyPair } from '../services/crypto';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Mock services
 vi.mock('../services/crypto', () => ({
-  generateDHKeyPair: vi.fn().mockResolvedValue({
-    publicKey: 'mockPublicKey',
-    privateKey: 'mockPrivateKey'
+  generateKeyPair: vi.fn().mockResolvedValue({
+    publicKey: 'mockedPublicKey',
+    privateKey: 'mockedPrivateKey'
   }),
-  exportDHPublicKey: vi.fn().mockResolvedValue('exportedPublicKey'),
-  importDHPublicKey: vi.fn().mockResolvedValue('importedPublicKey'),
-  deriveSharedSecret: vi.fn().mockResolvedValue('sharedSecret'),
-  encryptData: vi.fn().mockResolvedValue({
-    ciphertext: 'encryptedData',
-    iv: 'iv'
-  }),
-  decryptData: vi.fn().mockResolvedValue('decryptedData')
+  exportPublicKey: vi.fn().mockResolvedValue('exportedPublicKey'),
+  exportPrivateKey: vi.fn().mockResolvedValue('exportedPrivateKey'),
+  encryptMessage: vi.fn().mockResolvedValue({ ciphertext: 'encryptedData', iv: 'iv' }),
+  decryptMessage: vi.fn().mockResolvedValue('decryptedMessage')
 }));
 
-// Mock RTCPeerConnection
-global.RTCPeerConnection = vi.fn().mockImplementation(() => ({
-  close: vi.fn(),
-  createOffer: vi.fn().mockResolvedValue({ type: 'offer', sdp: 'sdp' }),
-  createAnswer: vi.fn().mockResolvedValue({ type: 'answer', sdp: 'sdp' }),
-  setLocalDescription: vi.fn().mockResolvedValue(undefined),
-  setRemoteDescription: vi.fn().mockResolvedValue(undefined),
-  addIceCandidate: vi.fn().mockResolvedValue(undefined),
-  addEventListener: vi.fn(),
-  removeEventListener: vi.fn(),
-  createDataChannel: vi.fn().mockReturnValue({
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    readyState: 'open',
-    send: vi.fn()
-  })
-})) as unknown as typeof RTCPeerConnection;
+vi.mock('../services/diffieHellman', () => ({
+  generateDHKeyPair: vi.fn().mockResolvedValue({
+    publicKey: 'mockedDHPublicKey',
+    privateKey: 'mockedDHPrivateKey'
+  }),
+  exportDHPublicKey: vi.fn().mockResolvedValue('exportedDHPublicKey'),
+  importDHPublicKey: vi.fn().mockResolvedValue('importedDHPublicKey'),
+  deriveSharedSecret: vi.fn().mockResolvedValue('sharedSecret'),
+  encryptWithSharedSecret: vi.fn().mockResolvedValue({ ciphertext: 'encryptedData', iv: 'iv' }),
+  decryptWithSharedSecret: vi.fn().mockResolvedValue('decryptedWithSharedSecret')
+}));
 
-// Add static method
-(global.RTCPeerConnection as unknown as { 
-  generateCertificate: (keygenAlgorithm: AlgorithmIdentifier) => Promise<RTCCertificate>
-}).generateCertificate = vi.fn().mockResolvedValue({} as RTCCertificate);
+// Mock RTCPeerConnection and RTCDataChannel
+class MockDataChannel {
+  readyState = 'connecting';
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: ((event: any) => void) | null = null;
+  onmessage: ((event: any) => void) | null = null;
+  send = vi.fn();
+  close = vi.fn();
+}
+
+class MockPeerConnection {
+  connectionState = 'new';
+  signalingState = 'stable';
+  onconnectionstatechange: (() => void) | null = null;
+  onsignalingstatechange: (() => void) | null = null;
+  ondatachannel: ((event: any) => void) | null = null;
+  createDataChannel = vi.fn().mockReturnValue(new MockDataChannel());
+  createOffer = vi.fn().mockResolvedValue({ type: 'offer', sdp: 'sdp' });
+  createAnswer = vi.fn().mockResolvedValue({ type: 'answer', sdp: 'sdp' });
+  setLocalDescription = vi.fn().mockResolvedValue(undefined);
+  setRemoteDescription = vi.fn().mockResolvedValue(undefined);
+  close = vi.fn();
+}
+
+global.RTCPeerConnection = MockPeerConnection as any;
+global.RTCSessionDescription = vi.fn() as any;
 
 describe('DirectP2PService', () => {
   let p2pService: DirectP2PService;
@@ -56,12 +70,7 @@ describe('DirectP2PService', () => {
   });
   
   it('should initialize correctly', async () => {
-    const mockKeyPair = {
-      publicKey: 'mockPublicKey',
-      privateKey: 'mockPrivateKey'
-    } as unknown as KeyPair;
-    
-    const userId = await p2pService.initialize(mockKeyPair);
+    const userId = await p2pService.initialize();
     
     expect(userId).toBeDefined();
     expect(userId.length).toBeGreaterThan(0);
@@ -69,12 +78,7 @@ describe('DirectP2PService', () => {
   });
   
   it('should check if peer is connected', async () => {
-    const mockKeyPair = {
-      publicKey: 'mockPublicKey',
-      privateKey: 'mockPrivateKey'
-    } as unknown as KeyPair;
-    
-    await p2pService.initialize(mockKeyPair);
+    await p2pService.initialize();
     
     // Initially no peers are connected
     expect(p2pService.isConnectedTo('somePeerId')).toBe(false);
@@ -82,12 +86,7 @@ describe('DirectP2PService', () => {
   });
   
   it('should clean up resources on disconnect', async () => {
-    const mockKeyPair = {
-      publicKey: 'mockPublicKey',
-      privateKey: 'mockPrivateKey'
-    } as unknown as KeyPair;
-    
-    await p2pService.initialize(mockKeyPair);
+    await p2pService.initialize();
     p2pService.disconnect();
     
     // After disconnect, service should not be initialized

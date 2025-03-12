@@ -1,225 +1,150 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
-import { Button, Input, Textarea } from '../components/ui';
-import { SunIcon, MoonIcon, UserPlusIcon, CopyIcon, GithubIcon } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Textarea } from '../components/ui/Textarea';
 import { useTheme } from '../hooks/useTheme';
+import { useDirectP2PChat } from '../hooks/useDirectP2PChat';
+import { SunIcon, MoonIcon, ArrowLeftIcon, CopyIcon, WifiIcon, MessageSquareIcon, GithubIcon } from 'lucide-react';
 
 /**
- * Direct Connect Page for establishing WebRTC connections
+ * Page for creating direct WebRTC connections
  */
 const DirectConnect: React.FC = () => {
   const navigate = useNavigate();
   const { toggleTheme, isDark } = useTheme();
   
-  // Local states for connection data
+  // Connection states
+  const [mode, setMode] = useState<'create' | 'join'>('create');
   const [ipAddress, setIpAddress] = useState('');
   const [contactName, setContactName] = useState('');
-  const [connectionMode, setConnectionMode] = useState<'create' | 'join'>('create');
-  const [offerData, setOfferData] = useState('');
-  const [answerData, setAnswerData] = useState('');
-  const [iceCandidates, setIceCandidates] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [offer, setOffer] = useState('');
+  const [answer, setAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // Ajouter un état pour suivre si nous avons vérifié l'initialisation
-  const [checkedInitialization, setCheckedInitialization] = useState(false);
-  
-  // Access the DirectP2P hook
-  const {
-    userProfile,
-    myUserId,
-    isInitialized,
-    isConnecting,
-    reconnect,
-    connectToContact,
-    handleContactOffer,
-    handleContactAnswer,
-    handleIceCandidate
+  // Get P2P hooks
+  const { 
+    userProfile, 
+    connectToContact, 
+    handleContactOffer, 
+    handleContactAnswer, 
+    myUserId
   } = useDirectP2PChat();
   
-  // Vérifier l'état d'initialisation
+  // Redirect to login if not authenticated
   useEffect(() => {
-    const checkInitialization = async () => {
-      // Si pas encore vérifié et pas déjà initialisé/en cours d'initialisation
-      if (!checkedInitialization && !isInitialized && !isConnecting) {
-        try {
-          // Essayer de reconnecter avec le profil existant
-          const success = await reconnect();
-          if (!success) {
-            // Rediriger vers la page de connexion si la reconnexion échoue
-            navigate('/');
-          }
-        } catch (err) {
-          console.error('Error reconnecting:', err);
-          navigate('/');
-        } finally {
-          setCheckedInitialization(true);
-        }
-      }
-    };
-    
-    checkInitialization();
-  }, [checkedInitialization, isInitialized, isConnecting, reconnect, navigate]);
-  
-  // Redirect to login if still not initialized after check
-  useEffect(() => {
-    if (checkedInitialization && !isInitialized && !isConnecting) {
+    if (!userProfile) {
       navigate('/');
     }
-  }, [checkedInitialization, isInitialized, isConnecting, navigate]);
+  }, [userProfile, navigate]);
   
-  // Create a connection offer
-  const createOffer = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Handle creating a connection offer
+  const handleCreateOffer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (!ipAddress.trim()) {
-      setError('Please enter a valid IP address');
-      return;
-    }
-    
-    setIsProcessing(true);
     setError(null);
     setSuccessMessage(null);
     
+    if (!ipAddress.trim()) {
+      setError('Please enter the peer IP address');
+      return;
+    }
+    
     try {
-      // Try to connect to the peer
-      await connectToContact(ipAddress, contactName || undefined);
-      
       // The actual WebRTC offer generation happens in the DirectP2PService
-      // The offer would be logged to console since we don't have a signaling server
-      // In a real application, you would need to implement a way to share this offer
-      
-      setSuccessMessage('Connection initiated! Check console for the offer data.');
-      
-      // In a real application, you would do this:
-      // setOfferData(JSON.stringify(generatedOffer));
-    } catch (err) {
-      setError('Error creating connection offer. See console for details.');
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
+      await connectToContact(ipAddress, contactName || undefined);
+      setSuccessMessage('Connection offer created! Share the offer data with the peer.');
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      setError(`Error creating offer: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
   
-  // Handle a received offer
-  const handleOffer = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Handle processing a connection offer
+  const handleProcessOffer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
     
-    if (!ipAddress.trim() || !offerData.trim()) {
+    if (!ipAddress.trim() || !offer.trim()) {
       setError('Please enter both IP address and offer data');
       return;
     }
     
-    setIsProcessing(true);
-    setError(null);
-    setSuccessMessage(null);
-    
     try {
-      // Parse the offer data
-      const offerObject = JSON.parse(offerData);
+      // Parse the offer
+      const offerObject = JSON.parse(offer);
       
-      // Handle the offer and generate an answer
-      const answer = await handleContactOffer(ipAddress, offerObject, contactName || undefined);
+      // Process the offer and get an answer
+      const answerObject = await handleContactOffer(ipAddress, offerObject, contactName || undefined);
       
-      // Display the answer to be shared
-      setAnswerData(JSON.stringify(answer));
-      setSuccessMessage('Answer generated! Share this with the other peer.');
-    } catch (err) {
-      setError('Error processing offer. Please check the format and try again.');
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
+      // Set the answer for display
+      setAnswer(JSON.stringify(answerObject));
+      
+      setSuccessMessage('Offer processed successfully! Copy the answer data to send back to the peer.');
+    } catch (error) {
+      console.error('Error processing offer:', error);
+      setError(`Error processing offer: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
   
-  // Handle a received answer
-  const handleAnswer = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Handle processing an answer to our connection offer
+  const handleProcessAnswer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
     
-    if (!ipAddress.trim() || !answerData.trim()) {
+    if (!ipAddress.trim() || !answer.trim()) {
       setError('Please enter both IP address and answer data');
       return;
     }
     
-    setIsProcessing(true);
-    setError(null);
-    setSuccessMessage(null);
-    
     try {
-      // Parse the answer data
-      const answerObject = JSON.parse(answerData);
+      // Parse the answer
+      const answerObject = JSON.parse(answer);
       
       // Process the answer
-      await handleContactAnswer(ipAddress, answerObject);
+      const success = await handleContactAnswer(ipAddress, answerObject);
       
-      setSuccessMessage('Answer processed! Connection should be established soon.');
-    } catch (err) {
-      setError('Error processing answer. Please check the format and try again.');
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
-  // Handle ICE candidates
-  const handleIceCandidatesSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    if (!ipAddress.trim() || !iceCandidates.trim()) {
-      setError('Please enter both IP address and ICE candidate data');
-      return;
-    }
-    
-    setIsProcessing(true);
-    setError(null);
-    setSuccessMessage(null);
-    
-    try {
-      // Parse the ICE candidate data
-      const candidateObjects = JSON.parse(iceCandidates);
-      
-      // Handle multiple candidates if provided as an array
-      if (Array.isArray(candidateObjects)) {
-        for (const candidate of candidateObjects) {
-          await handleIceCandidate(ipAddress, candidate);
-        }
+      if (success) {
+        setSuccessMessage('Connection established successfully!');
       } else {
-        // Handle single candidate
-        await handleIceCandidate(ipAddress, candidateObjects);
+        setError('Failed to establish connection. Please try again.');
       }
-      
-      setSuccessMessage('ICE candidates processed successfully!');
-    } catch (err) {
-      setError('Error processing ICE candidates. Please check the format and try again.');
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
+    } catch (error) {
+      console.error('Error processing answer:', error);
+      setError(`Error processing answer: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
   
   // Copy text to clipboard
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setSuccessMessage('Copied to clipboard!');
-    
-    // Clear success message after 2 seconds
-    setTimeout(() => {
-      setSuccessMessage(null);
-    }, 2000);
-  };
-  
-  // Go to chat page
-  const goToChat = () => {
-    navigate('/chat');
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setSuccessMessage('Copied to clipboard!');
+        setTimeout(() => setSuccessMessage(null), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy text:', err);
+        setError('Failed to copy to clipboard');
+      });
   };
   
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-border p-4">
-        <h1 className="text-xl font-bold">Direct P2P Connection</h1>
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/chat')}
+            aria-label="Back to Chat"
+          >
+            <ArrowLeftIcon size={20} />
+          </Button>
+          <h1 className="text-xl font-semibold">Direct Connect</h1>
+        </div>
         
         <div className="flex items-center gap-2">
           <Button 
@@ -234,189 +159,147 @@ const DirectConnect: React.FC = () => {
             variant="ghost" 
             size="icon" 
             onClick={toggleTheme}
-            aria-label="Toggle theme"
+            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
           >
             {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={goToChat}
-            aria-label="Go to Chat"
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/chat')}
+            aria-label="Go to chat"
           >
-            <UserPlusIcon size={20} />
+            <MessageSquareIcon size={20} />
           </Button>
         </div>
       </header>
       
-      <div className="container mx-auto max-w-3xl p-4">
-        {/* User Profile Info */}
-        {userProfile && (
-          <div className="mb-6 rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
+      <main className="container mx-auto flex max-w-4xl flex-1 flex-col gap-8 p-4">
+        {/* User ID */}
+        <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <WifiIcon className="text-primary" size={24} />
               <div>
-                <h2 className="text-lg font-semibold">{userProfile.name}</h2>
-                <div className="flex items-center gap-2 text-sm text-muted">
-                  <span>Your ID: {myUserId}</span>
-                  <button
-                    onClick={() => myUserId && copyToClipboard(myUserId)}
-                    className="text-primary hover:text-primary/80"
-                    aria-label="Copy ID"
-                  >
-                    <CopyIcon size={14} />
-                  </button>
-                </div>
-              </div>
-              <div>
-                <span className="flex h-3 w-3 rounded-full bg-green-500"></span>
+                <h2 className="text-lg font-medium">Your User ID</h2>
+                <p className="text-sm text-muted-foreground">Share this ID with others to let them connect to you</p>
               </div>
             </div>
+            <Button size="sm" variant="ghost" onClick={() => copyToClipboard(myUserId || '')} aria-label="Copy ID">
+              <CopyIcon size={16} className="mr-2" />
+              Copy
+            </Button>
           </div>
-        )}
-        
+          
+          <div className="mt-3 overflow-hidden rounded bg-muted/50 p-3">
+            <code className="block truncate text-sm font-mono">
+              {myUserId || 'Initializing...'}
+            </code>
+          </div>
+        </div>
+      
         {/* Connection Mode Selector */}
-        <div className="mb-6 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4">
           <Button 
-            onClick={() => setConnectionMode('create')} 
-            variant={connectionMode === 'create' ? 'default' : 'outline'}
+            variant={mode === 'create' ? 'default' : 'outline'} 
+            onClick={() => setMode('create')}
           >
             Create Connection
           </Button>
           <Button 
-            onClick={() => setConnectionMode('join')} 
-            variant={connectionMode === 'join' ? 'default' : 'outline'}
+            variant={mode === 'join' ? 'default' : 'outline'} 
+            onClick={() => setMode('join')}
           >
             Join Connection
           </Button>
         </div>
         
-        {/* Error and Success Messages */}
+        {/* Error/Success Messages */}
         {error && (
-          <div className="mb-4 rounded-md bg-red-100 p-3 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+          <div className="rounded-md bg-destructive/10 p-3 text-destructive">
             {error}
           </div>
         )}
         
         {successMessage && (
-          <div className="mb-4 rounded-md bg-green-100 p-3 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+          <div className="rounded-md bg-green-100 p-3 text-green-800 dark:bg-green-900/30 dark:text-green-400">
             {successMessage}
           </div>
         )}
         
-        {/* Create Connection Mode */}
-        {connectionMode === 'create' && (
+        {/* Connection Form - Create Connection */}
+        {mode === 'create' && (
           <div className="space-y-6">
-            <form onSubmit={createOffer} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Peer IP Address</label>
-                <Input
+            {/* Peer Info */}
+            <form onSubmit={handleCreateOffer} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Peer IP Address</label>
+                <Input 
                   value={ipAddress}
                   onChange={(e) => setIpAddress(e.target.value)}
-                  placeholder="Enter IP address"
+                  placeholder="Enter IP address or ID"
                   required
                 />
               </div>
               
-              <div>
-                <label className="mb-2 block text-sm font-medium">Contact Name (Optional)</label>
-                <Input
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Contact Name (optional)</label>
+                <Input 
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="Enter a name for this contact"
                 />
               </div>
               
-              <Button type="submit" isLoading={isProcessing} className="w-full">
-                Create Connection Offer
+              <Button type="submit" className="w-full">
+                Create Connection
               </Button>
             </form>
             
-            {/* If we have generated offer data to display */}
-            {offerData && (
+            {/* Process Answer */}
+            <form onSubmit={handleProcessAnswer} className="space-y-4">
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium">Connection Offer (share this)</label>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(offerData)}
-                  >
-                    <CopyIcon size={16} />
-                  </Button>
-                </div>
+                <label className="block text-sm font-medium">Process Answer</label>
                 <Textarea
-                  value={offerData}
-                  readOnly
-                  rows={4}
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="Paste the answer from the other peer"
                   className="font-mono text-xs"
-                />
-              </div>
-            )}
-            
-            {/* Form to handle received answer */}
-            {offerData && (
-              <form onSubmit={handleAnswer} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Connection Answer (paste from peer)</label>
-                  <Textarea
-                    value={answerData}
-                    onChange={(e) => setAnswerData(e.target.value)}
-                    placeholder="Paste the answer from the other peer here"
-                    rows={4}
-                    className="font-mono text-xs"
-                    required
-                  />
-                </div>
-                
-                <Button type="submit" isLoading={isProcessing} className="w-full">
-                  Process Answer
-                </Button>
-              </form>
-            )}
-            
-            {/* ICE Candidates Input */}
-            <form onSubmit={handleIceCandidatesSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">ICE Candidates (optional)</label>
-                <Textarea
-                  value={iceCandidates}
-                  onChange={(e) => setIceCandidates(e.target.value)}
-                  placeholder="Paste ICE candidates from the other peer"
-                  rows={3}
-                  className="font-mono text-xs"
+                  rows={6}
                 />
               </div>
               
-              <Button 
-                type="submit" 
-                variant="outline" 
-                isLoading={isProcessing} 
-                className="w-full"
-                disabled={!iceCandidates}
-              >
-                Process ICE Candidates
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={!answer}
+                >
+                  Process Answer
+                </Button>
+              </div>
             </form>
           </div>
         )}
         
-        {/* Join Connection Mode */}
-        {connectionMode === 'join' && (
+        {/* Connection Form - Join Connection */}
+        {mode === 'join' && (
           <div className="space-y-6">
-            <form onSubmit={handleOffer} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Peer IP Address</label>
-                <Input
+            {/* Process Offer */}
+            <form onSubmit={handleProcessOffer} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Peer IP Address</label>
+                <Input 
                   value={ipAddress}
                   onChange={(e) => setIpAddress(e.target.value)}
-                  placeholder="Enter IP address"
+                  placeholder="Enter IP address or ID"
                   required
                 />
               </div>
               
-              <div>
-                <label className="mb-2 block text-sm font-medium">Contact Name (Optional)</label>
-                <Input
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Contact Name (optional)</label>
+                <Input 
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="Enter a name for this contact"
@@ -424,81 +307,50 @@ const DirectConnect: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Connection Offer (paste from peer)</label>
+                <label className="block text-sm font-medium">Connection Offer</label>
                 <Textarea
-                  value={offerData}
-                  onChange={(e) => setOfferData(e.target.value)}
-                  placeholder="Paste the offer from the other peer here"
-                  rows={4}
+                  value={offer}
+                  onChange={(e) => setOffer(e.target.value)}
+                  placeholder="Paste the offer from the other peer"
                   className="font-mono text-xs"
+                  rows={6}
                   required
                 />
               </div>
               
-              <Button type="submit" isLoading={isProcessing} className="w-full">
+              <Button type="submit" className="w-full">
                 Process Offer & Generate Answer
               </Button>
             </form>
             
-            {/* Display the generated answer */}
-            {answerData && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium">Connection Answer (share this)</label>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(answerData)}
-                  >
-                    <CopyIcon size={16} />
-                  </Button>
+            {/* Display Answer */}
+            {answer && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Your Answer (send this to the other peer)</label>
+                  <div className="relative">
+                    <Textarea
+                      value={answer}
+                      className="font-mono text-xs pr-12"
+                      rows={6}
+                      readOnly
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => copyToClipboard(answer)}
+                      className="absolute right-2 top-2"
+                      aria-label="Copy answer"
+                    >
+                      <CopyIcon size={16} />
+                    </Button>
+                  </div>
                 </div>
-                <Textarea
-                  value={answerData}
-                  readOnly
-                  rows={4}
-                  className="font-mono text-xs"
-                />
               </div>
             )}
-            
-            {/* ICE Candidates Input */}
-            <form onSubmit={handleIceCandidatesSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">ICE Candidates (optional)</label>
-                <Textarea
-                  value={iceCandidates}
-                  onChange={(e) => setIceCandidates(e.target.value)}
-                  placeholder="Paste ICE candidates from the other peer"
-                  rows={3}
-                  className="font-mono text-xs"
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                variant="outline" 
-                isLoading={isProcessing} 
-                className="w-full"
-                disabled={!iceCandidates}
-              >
-                Process ICE Candidates
-              </Button>
-            </form>
           </div>
         )}
-        
-        {/* Go to Chat Button */}
-        <div className="mt-8">
-          <Button 
-            onClick={goToChat}
-            variant="outline"
-            className="w-full"
-          >
-            Go to Chat
-          </Button>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };
